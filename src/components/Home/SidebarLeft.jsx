@@ -1,8 +1,14 @@
 import React from 'react';
 import { Users, Video, Bookmark, Settings } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { useFriends } from '../../hooks/useFriends';
+import { useNavigate } from 'react-router-dom';
 
-const SidebarLink = ({ icon, label, img }) => (
-  <div className="flex items-center gap-3 p-3 hover:bg-gray-200 rounded-xl cursor-pointer transition-all duration-200">
+const SidebarLink = ({ icon, label, img, onClick }) => (
+  <div 
+    onClick={onClick}
+    className="flex items-center gap-3 p-3 hover:bg-gray-200 rounded-xl cursor-pointer transition-all duration-200"
+  >
     <div className="w-9 h-9 flex items-center justify-center shrink-0">
       {img ? (
         <img src={img} className="w-full h-full rounded-full object-cover" alt={label} />
@@ -14,7 +20,7 @@ const SidebarLink = ({ icon, label, img }) => (
   </div>
 );
 
-const InvitationCard = ({ name, mutualFriends, avatar }) => (
+const InvitationCard = ({ name, mutualFriends, avatar, onConfirm, onDelete }) => (
   <div className="p-2 hover:bg-gray-100 rounded-xl transition-all duration-200 mb-2">
     <div className="flex gap-3 mb-2">
       <img src={avatar} className="w-12 h-12 rounded-full object-cover shrink-0" alt={name} />
@@ -24,30 +30,82 @@ const InvitationCard = ({ name, mutualFriends, avatar }) => (
       </div>
     </div>
     <div className="flex gap-2">
-      <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 rounded-lg transition">Confirmer</button>
-      <button className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-bold py-2 rounded-lg transition">Supprimer</button>
+      <button 
+        onClick={onConfirm}
+        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 rounded-lg transition"
+      >
+        Confirmer
+      </button>
+      <button 
+        onClick={onDelete}
+        className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-bold py-2 rounded-lg transition"
+      >
+        Supprimer
+      </button>
     </div>
   </div>
 );
 
 const SidebarLeft = () => {
+  const { user } = useAuth();
+  const { invitations, acceptInvitation, declineInvitation } = useFriends();
+  const navigate = useNavigate();
+
   return (
     <aside className="hidden lg:block lg:col-span-3 sticky top-[112px] self-start h-[calc(100vh-112px)]">
       <div className="h-full overflow-y-auto pr-2 custom-scrollbar py-2">
-        <SidebarLink img="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" label="Felix Dev" />
-        <SidebarLink icon={<Users className="text-blue-500" />} label="Amis" />
-        <SidebarLink icon={<Video className="text-red-500" />} label="Vidéo live" />
-        <SidebarLink icon={<Bookmark className="text-purple-500" />} label="Enregistrement" />
-        <SidebarLink icon={<Settings className="text-gray-600" />} label="Paramètres" />
+        <SidebarLink 
+          img={user.avatar_url} 
+          label={user.name} 
+          onClick={() => navigate('/profile')} 
+        />
+        <SidebarLink 
+          icon={<Users className="text-blue-500" />} 
+          label="Amis" 
+          onClick={() => navigate('/friend')}
+        />
+        <SidebarLink 
+          icon={<Video className="text-red-500" />} 
+          label="Vidéo live" 
+          onClick={() => navigate('/video')}
+        />
+        <SidebarLink 
+          icon={<Bookmark className="text-purple-500" />} 
+          label="Enregistrement" 
+          onClick={() => navigate('/saved')}
+        />
+        <SidebarLink 
+          icon={<Settings className="text-gray-600" />} 
+          label="Paramètres" 
+          onClick={() => navigate('/setting')}
+        />
         
         <hr className="my-4 border-gray-300 mx-2" />
         
         <div className="px-2 mb-4 flex justify-between items-center text-gray-500 font-bold text-[16px]">
           <h3>Invitations</h3>
-          <button className="text-blue-600 text-xs font-normal hover:underline">Voir tout</button>
+          <button 
+            onClick={() => navigate('/friend')}
+            className="text-blue-600 text-xs font-normal hover:underline"
+          >
+            Voir tout
+          </button>
         </div>
-        <InvitationCard name="Sonia Rakoto" mutualFriends="12" avatar="https://api.dicebear.com/7.x/avataaars/svg?seed=Sonia" />
-        <InvitationCard name="Jean Marc" mutualFriends="3" avatar="https://api.dicebear.com/7.x/avataaars/svg?seed=Marc" />
+        
+        {invitations.slice(0, 2).map(inv => (
+          <InvitationCard 
+            key={inv.id}
+            name={inv.name} 
+            mutualFriends={inv.mutualFriends} 
+            avatar={inv.avatar} 
+            onConfirm={() => acceptInvitation(inv.id)}
+            onDelete={() => declineInvitation(inv.id)}
+          />
+        ))}
+
+        {invitations.length === 0 && (
+          <p className="px-2 text-xs text-gray-500">Pas d'invitations en attente.</p>
+        )}
       </div>
     </aside>
   );

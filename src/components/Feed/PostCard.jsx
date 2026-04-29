@@ -2,18 +2,22 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Heart, MessageCircle, Share2, MoreHorizontal, Send } from 'lucide-react';
 import Comment from './Comment';
+import { usePosts } from '../../hooks/usePosts';
+import { useAuth } from '../../context/AuthContext';
 
-const PostCard = ({ user, content, image, time }) => {
+const PostCard = ({ id, user: author, content, image, time, likes_count: initialLikes, isLikedByMe: initialIsLiked, comments: initialComments }) => {
   const navigate = useNavigate();
+  const { likePost, addComment } = usePosts();
+  const { user: currentUser } = useAuth();
 
-  // --- ÉTATS INTERACTIFS ---
-  const [isLiked, setIsLiked] = useState(false);
-  const [likesCount, setLikesCount] = useState(Math.floor(Math.random() * 50));
+  // --- ÉTATS LOCAUX (pour réactivité immédiate avant persistence context) ---
+  const [isLiked, setIsLiked] = useState(initialIsLiked || false);
+  const [likesCount, setLikesCount] = useState(initialLikes || Math.floor(Math.random() * 50));
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   
-  // Simulation d'une liste de commentaires
-  const [comments, setComments] = useState([
+  // Liste des commentaires locale
+  const [comments, setComments] = useState(initialComments || [
     { id: 1, user: { name: "Lucas Bernard" }, text: "Incroyable cette vue ! 😍", time: "2h" },
     { id: 2, user: { name: "Marie Rakoto" }, text: "ArumA avance super vite, bravo !", time: "1h" }
   ]);
@@ -22,6 +26,7 @@ const PostCard = ({ user, content, image, time }) => {
   const handleLike = () => {
     setIsLiked(!isLiked);
     setLikesCount(prev => isLiked ? prev - 1 : prev + 1);
+    likePost(id);
   };
 
   const handleCommentSubmit = (e) => {
@@ -30,12 +35,13 @@ const PostCard = ({ user, content, image, time }) => {
 
     const newComment = {
       id: Date.now(),
-      user: { name: "Felix Dev" }, // Utilisateur actuel simulé
+      user: { name: currentUser.name, avatar: currentUser.avatar_url }, 
       text: commentText,
       time: "À l'instant"
     };
 
     setComments([...comments, newComment]);
+    addComment(id, newComment);
     setCommentText("");
   };
 
@@ -50,14 +56,14 @@ const PostCard = ({ user, content, image, time }) => {
         >
           <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden ring-1 ring-gray-100">
             <img 
-              src={user?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${user?.name}`} 
+              src={author?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${author?.name}`} 
               className="w-full h-full object-cover" 
               alt="avatar" 
             />
           </div>
           <div>
             <h4 className="font-bold text-[14px] group-hover:underline text-gray-900">
-              {user?.name || "Utilisateur ArumA"}
+              {author?.name || "Utilisateur ArumA"}
             </h4>
             <p className="text-[12px] text-gray-500 font-medium">{time || "À l'instant"}</p>
           </div>
@@ -151,7 +157,7 @@ const PostCard = ({ user, content, image, time }) => {
           {/* Formulaire de saisie */}
           <form onSubmit={handleCommentSubmit} className="flex items-center gap-2 mt-2">
             <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
-              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="Moi" />
+              <img src={currentUser.avatar_url} alt="Moi" />
             </div>
             <div className="flex-1 relative">
               <input 

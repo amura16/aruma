@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { User, Lock, Moon, Sun, ChevronLeft } from 'lucide-react';
 import NavBar from '../components/Layout/Navbar';
 import SettingsItem from '../components/Settings/SettingsItem';
+import { useAuth } from '../context/AuthContext';
 
 const Settings = () => {
+  const { user, updateProfile } = useAuth();
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   const toggleDarkMode = () => {
@@ -39,8 +41,11 @@ const Settings = () => {
               <SettingsItem 
                 icon={<User size={20} />}
                 title="Informations personnelles"
-                description="Mettez à jour votre nom, email et coordonnées"
-                onClick={() => console.log("Vers infos perso")}
+                description={`Nom actuel : ${user.name}`}
+                onClick={() => {
+                  const newName = prompt("Entrez votre nouveau nom :", user.name);
+                  if (newName) updateProfile({ name: newName });
+                }}
               />
               <SettingsItem 
                 icon={<Lock size={20} />}

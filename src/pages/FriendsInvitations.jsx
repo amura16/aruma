@@ -2,15 +2,10 @@ import React from 'react';
 import NavBar from '../components/Layout/Navbar';
 import InvitationsSidebar from '../components/Invitations/InvitationsSidebar';
 import FriendRequestCard from '../components/Invitations/FriendRequestCard';
+import { useFriends } from '../hooks/useFriends';
 
 const FriendsInvitations = () => {
-  // Simulation de données reçues de Supabase
-  const requests = [
-    { id: 1, name: "Sonia Rakoto", mutualFriends: 12, avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sonia" },
-    { id: 2, name: "Jean Marc", mutualFriends: 3, avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Marc" },
-    { id: 3, name: "Mialy Soa", mutualFriends: 0, avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Mialy" },
-    { id: 4, name: "Lucas Randria", mutualFriends: 8, avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Lucas" },
-  ];
+  const { invitations, acceptInvitation, declineInvitation } = useFriends();
 
   return (
     <div className="min-h-screen bg-[#F0F2F5]">
@@ -32,19 +27,19 @@ const FriendsInvitations = () => {
 
             {/* Grille Responsive */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              {requests.map((request) => (
+              {invitations.map((inv) => (
                 <FriendRequestCard 
-                  key={request.id}
-                  name={request.name}
-                  mutualFriends={request.mutualFriends}
-                  avatar={request.avatar}
-                  onAccept={() => console.log("Accepté", request.id)}
-                  onDecline={() => console.log("Refusé", request.id)}
+                  key={inv.id}
+                  name={inv.name}
+                  mutualFriends={inv.mutualFriends}
+                  avatar={inv.avatar}
+                  onAccept={() => acceptInvitation(inv.id)}
+                  onDecline={() => declineInvitation(inv.id)}
                 />
               ))}
             </div>
 
-            {requests.length === 0 && (
+            {invitations.length === 0 && (
               <div className="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
                 <p className="text-gray-500">Aucune invitation en attente.</p>
               </div>

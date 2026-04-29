@@ -2,14 +2,15 @@ import React from 'react';
 import ProfileHeader from '../components/Profile/ProfileHeader';
 import ProfileSidebar from '../components/Profile/ProfileSidebar';
 import PostCard from '../components/Feed/PostCard';
+import { useAuth } from '../context/AuthContext';
+import { usePosts } from '../hooks/usePosts';
 
 const Profile = () => {
-  // 1. Définir les données qui manquent
-  const currentUser = {
-    name: "Felix Dev",
-    avatar_url: "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
-    cover_url: "https://images.unsplash.com/photo-1557683316-973673baf926"
-  };
+  const { user: currentUser } = useAuth();
+  const { posts } = usePosts();
+
+  // Filter posts to show only user's posts
+  const userPosts = posts.filter(post => post.author?.id === currentUser.id);
 
   // Ce sont ces variables qui causaient l'erreur "not defined"
   const userPhotos = [
@@ -37,11 +38,24 @@ const Profile = () => {
         />
 
         <section className="md:col-span-7 space-y-4">
-          <PostCard 
-            user={currentUser} 
-            content="Mon premier post sur mon nouveau profil !" 
-            time="À l'instant" 
-          />
+          {userPosts.map(post => (
+            <PostCard 
+              key={post.id}
+              id={post.id}
+              user={post.author} 
+              content={post.content} 
+              image={post.image_url}
+              time={post.created_at}
+              likes_count={post.likes_count}
+              isLikedByMe={post.isLikedByMe}
+              comments={post.comments}
+            />
+          ))}
+          {userPosts.length === 0 && (
+            <div className="bg-white p-8 rounded-xl text-center text-gray-500 border border-gray-200">
+              Vous n'avez pas encore de publications.
+            </div>
+          )}
         </section>
       </main>
     </div>

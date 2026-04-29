@@ -3,8 +3,10 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, Users, MessageCircle, Bell, Tv, Menu } from 'lucide-react';
 import NavItem from '../UI/NavItem';
 import SearchBar from '../UI/SearchBar';
+import { useAuth } from '../../context/AuthContext';
 
 const NavBar = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -66,7 +68,7 @@ const NavBar = () => {
               location.pathname === '/profile' ? 'border-blue-600 scale-110' : 'border-transparent hover:bg-gray-100'
             }`}
           >
-            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="Mon Profil" />
+            <img src={user.avatar_url} alt="Mon Profil" />
           </div>
         </div>
       </div>

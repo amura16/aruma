@@ -1,7 +1,8 @@
 import React from 'react';
 import NavBar from '../components/Layout/Navbar';
 import PostCard from '../components/Feed/PostCard';
-import useFetchPosts from '../hooks/useFetchPosts';
+import { usePosts } from '../hooks/usePosts';
+import { useAuth } from '../context/AuthContext';
 
 // Nouveaux imports propres
 import SidebarLeft from '../components/Home/SidebarLeft';
@@ -9,8 +10,9 @@ import SidebarRight from '../components/Home/SidebarRight';
 import CreatePost from '../components/Home/CreatePost';
 
 const Home = () => {
-  const { posts, loading, error } = useFetchPosts();
-  const myAvatar = "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix";
+  const { posts, loading, error } = usePosts();
+  const { user } = useAuth();
+  const myAvatar = user.avatar_url;
 
   return (
     <div className="min-h-screen bg-[#F0F2F5]">
@@ -30,6 +32,7 @@ const Home = () => {
             {posts.map((post) => (
               <PostCard 
                 key={post.id} 
+                id={post.id}
                 user={post.author ? { 
                   name: `${post.author.firstname} ${post.author.lastname}`, 
                   avatar: post.author.avatar_url 
@@ -37,6 +40,9 @@ const Home = () => {
                 content={post.content} 
                 image={post.image_url} 
                 time={post.created_at} 
+                likes_count={post.likes_count}
+                isLikedByMe={post.isLikedByMe}
+                comments={post.comments}
               />
             ))}
           </div>
