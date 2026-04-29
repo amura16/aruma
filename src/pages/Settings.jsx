@@ -41,10 +41,16 @@ const Settings = () => {
               <SettingsItem 
                 icon={<User size={20} />}
                 title="Informations personnelles"
-                description={`Nom actuel : ${user.name}`}
+                description={`Nom actuel : ${user.firstname} ${user.lastname}`}
                 onClick={() => {
-                  const newName = prompt("Entrez votre nouveau nom :", user.name);
-                  if (newName) updateProfile({ name: newName });
+                  const newFirstname = prompt("Entrez votre nouveau prénom :", user.firstname);
+                  const newLastname = prompt("Entrez votre nouveau nom :", user.lastname);
+                  if (newFirstname || newLastname) {
+                    updateProfile({ 
+                      firstname: newFirstname || user.firstname, 
+                      lastname: newLastname || user.lastname 
+                    });
+                  }
                 }}
               />
               <SettingsItem 

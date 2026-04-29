@@ -1,21 +1,50 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import supabase from '../services/supabaseClient';
 
 const AuthContext = createContext();
 
+const CURRENT_USER_ID = '550e8400-e29b-41d4-a716-446655440001';
+
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState({
-    id: 'felix-123',
-    name: 'Felix Dev',
-    username: 'felixdev',
-    avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
-    cover_url: 'https://images.unsplash.com/photo-1557683316-973673baf926',
-    bio: 'Développeur passionné par ArumA 🚀',
-  });
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', CURRENT_USER_ID)
+          .single();
 
-  const updateProfile = (newData) => {
-    setUser(prev => ({ ...prev, ...newData }));
+        if (error) throw error;
+        setUser(data);
+      } catch (err) {
+        console.error("Erreur lors de la récupération du profil:", err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
+  const updateProfile = async (newData) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(newData)
+        .eq('id', user.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      setUser(data);
+    } catch (err) {
+      console.error("Erreur lors de la mise à jour du profil:", err.message);
+    }
   };
 
   return (

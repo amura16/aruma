@@ -34,9 +34,9 @@ const ProfileHeader = ({ user, isOwner = false }) => {
             <div className="relative -mt-16 md:-mt-20 z-30"> 
               <div className="p-1.5 bg-white rounded-full shadow-md">
                 <img 
-                  src={user?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${user?.name}`} 
+                  src={user?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${user?.firstname || 'ArumA'}`} 
                   className="w-32 h-32 md:w-44 md:h-44 rounded-full border-4 border-white object-cover bg-gray-50" 
-                  alt={user?.name} 
+                  alt={user?.firstname} 
                 />
               </div>
               {isOwner && (
@@ -49,7 +49,7 @@ const ProfileHeader = ({ user, isOwner = false }) => {
             {/* Texte de profil */}
             <div className="flex-1 text-center md:text-left pt-2">
               <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
-                {user?.name || "Utilisateur ArumA"}
+                {user ? `${user.firstname} ${user.lastname}` : "Utilisateur ArumA"}
               </h1>
               <p className="text-gray-600 font-semibold text-[15px] hover:underline cursor-pointer">
                 {isOwner ? "1.2k amis" : "45 amis en commun"}

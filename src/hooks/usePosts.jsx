@@ -5,24 +5,19 @@ export const usePosts = () => {
   const { posts, loading, error, addPost, likePost, addComment } = usePostsContext();
   const { user } = useAuth();
 
-  const createPost = (content, image = null) => {
-    const newPost = {
-      id: Date.now(),
-      content,
-      image_url: image,
-      created_at: new Date().toISOString(),
-      author: {
-        id: user.id,
-        username: user.username,
-        firstname: user.name.split(' ')[0],
-        lastname: user.name.split(' ')[1] || '',
-        avatar_url: user.avatar_url
-      },
-      likes_count: 0,
-      isLikedByMe: false,
-      comments: []
-    };
-    addPost(newPost);
+  const createPost = async (content, image = null) => {
+    if (!user) return;
+    await addPost(content, image, user.id);
+  };
+
+  const handleLike = async (postId) => {
+    if (!user) return;
+    await likePost(postId, user.id);
+  };
+
+  const handleComment = async (postId, content) => {
+    if (!user) return;
+    await addComment(postId, user.id, content);
   };
 
   return {
@@ -30,7 +25,7 @@ export const usePosts = () => {
     loading,
     error,
     createPost,
-    likePost,
-    addComment
+    likePost: handleLike,
+    addComment: handleComment
   };
 };

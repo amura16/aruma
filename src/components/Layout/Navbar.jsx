@@ -68,7 +68,7 @@ const NavBar = () => {
               location.pathname === '/profile' ? 'border-blue-600 scale-110' : 'border-transparent hover:bg-gray-100'
             }`}
           >
-            <img src={user.avatar_url} alt="Mon Profil" />
+            <img src={user?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default'} alt="Mon Profil" />
           </div>
         </div>
       </div>

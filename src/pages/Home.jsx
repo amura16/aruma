@@ -11,8 +11,12 @@ import CreatePost from '../components/Home/CreatePost';
 
 const Home = () => {
   const { posts, loading, error } = usePosts();
-  const { user } = useAuth();
-  const myAvatar = user.avatar_url;
+  const { user, loading: authLoading } = useAuth();
+  const myAvatar = user?.avatar_url;
+
+  if (authLoading) {
+    return <div className="h-screen flex items-center justify-center">Chargement du profil...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-[#F0F2F5]">

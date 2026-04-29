@@ -25,7 +25,7 @@ const CreatePost = ({ userAvatar }) => {
           <img src={userAvatar} className="w-10 h-10 rounded-full object-cover" alt="me" />
           <input 
             className="bg-[#F0F2F5] hover:bg-gray-200 flex-1 text-left px-4 rounded-full text-gray-500 text-[17px] focus:outline-none"
-            placeholder={`Quoi de neuf, ${user.name.split(' ')[0]} ?`}
+            placeholder={`Quoi de neuf, ${user?.firstname || '...'} ?`}
             value={content}
             onChange={(e) => setContent(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}

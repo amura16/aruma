@@ -39,34 +39,70 @@ export const PostProvider = ({ children }) => {
     fetchPosts();
   }, []);
 
-  const addPost = (newPost) => {
-    setPosts(prev => [newPost, ...prev]);
+  const addPost = async (content, image_url, user_id) => {
+    try {
+      const { data, error } = await supabase
+        .from('posts')
+        .insert([{ content, image_url, user_id }])
+        .select(`
+          *,
+          author:user_id (id, username, firstname, lastname, avatar_url)
+        `)
+        .single();
+
+      if (error) throw error;
+      setPosts(prev => [data, ...prev]);
+    } catch (err) {
+      console.error("Erreur lors de la création du post:", err.message);
+    }
   };
 
-  const likePost = (postId) => {
-    setPosts(prev => prev.map(post => {
-      if (post.id === postId) {
-        const isLiked = post.isLikedByMe; // Simulated
-        return {
-          ...post,
-          likes_count: (post.likes_count || 0) + (isLiked ? -1 : 1),
-          isLikedByMe: !isLiked
-        };
+  const likePost = async (postId, userId) => {
+    try {
+      // Vérifier si déjà liké
+      const { data: existingLike } = await supabase
+        .from('likes')
+        .select('*')
+        .eq('post_id', postId)
+        .eq('user_id', userId)
+        .single();
+
+      if (existingLike) {
+        // Unlike
+        await supabase.from('likes').delete().eq('id', existingLike.id);
+      } else {
+        // Like
+        await supabase.from('likes').insert([{ post_id: postId, user_id: userId }]);
       }
-      return post;
-    }));
+      
+      // Note: On pourrait aussi mettre à jour posts localement ou via realtime
+    } catch (err) {
+      console.error("Erreur lors du like:", err.message);
+    }
   };
 
-  const addComment = (postId, comment) => {
-    setPosts(prev => prev.map(post => {
-      if (post.id === postId) {
-        return {
-          ...post,
-          comments: [...(post.comments || []), comment]
-        };
-      }
-      return post;
-    }));
+  const addComment = async (postId, userId, content) => {
+    try {
+      const { data, error } = await supabase
+        .from('comments')
+        .insert([{ post_id: postId, user_id: userId, content }])
+        .select(`
+          *,
+          user:user_id (id, username, firstname, lastname, avatar_url)
+        `)
+        .single();
+
+      if (error) throw error;
+      
+      setPosts(prev => prev.map(post => {
+        if (post.id === postId) {
+          return { ...post, comments: [...(post.comments || []), data] };
+        }
+        return post;
+      }));
+    } catch (err) {
+      console.error("Erreur lors du commentaire:", err.message);
+    }
   };
 
   return (

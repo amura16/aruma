@@ -55,8 +55,8 @@ const SidebarLeft = () => {
     <aside className="hidden lg:block lg:col-span-3 sticky top-[112px] self-start h-[calc(100vh-112px)]">
       <div className="h-full overflow-y-auto pr-2 custom-scrollbar py-2">
         <SidebarLink 
-          img={user.avatar_url} 
-          label={user.name} 
+          img={user?.avatar_url} 
+          label={user ? `${user.firstname} ${user.lastname}` : 'Mon Profil'} 
           onClick={() => navigate('/profile')} 
         />
         <SidebarLink 

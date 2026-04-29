@@ -6,7 +6,8 @@ import PostCard from '../components/Feed/PostCard';
 const UserProfile = () => {
   // 1. Simuler les données récupérées depuis une API pour un autre utilisateur
   const otherUser = {
-    name: "Sonia Rakoto",
+    firstname: "Sonia",
+    lastname: "Rakoto",
     avatar_url: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sonia",
     cover_url: "https://images.unsplash.com/photo-1494790108377-be9c29b29330",
     bio: "Exploratrice urbaine et passionnée de design. ✨"
