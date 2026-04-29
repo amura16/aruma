@@ -11,16 +11,19 @@ const PostCard = ({ id, user: author, content, image, time, likes_count: initial
   const { user: currentUser } = useAuth();
 
   // --- ÉTATS LOCAUX (pour réactivité immédiate avant persistence context) ---
-  const [isLiked, setIsLiked] = useState(initialIsLiked || false);
-  const [likesCount, setLikesCount] = useState(initialLikes || Math.floor(Math.random() * 50));
+  const [isLiked, setIsLiked] = useState(initialIsLiked);
+  const [likesCount, setLikesCount] = useState(initialLikes);
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   
-  // Liste des commentaires locale
-  const [comments, setComments] = useState(initialComments || [
-    { id: 1, user: { name: "Lucas Bernard" }, text: "Incroyable cette vue ! 😍", time: "2h" },
-    { id: 2, user: { name: "Marie Rakoto" }, text: "ArumA avance super vite, bravo !", time: "1h" }
-  ]);
+  // Synchronisation avec les props (pour refléter les changements du contexte global)
+  React.useEffect(() => {
+    setIsLiked(initialIsLiked);
+    setLikesCount(initialLikes);
+  }, [initialIsLiked, initialLikes]);
+
+  // La liste des commentaires vient maintenant directement des props (Supabase)
+  const comments = initialComments || [];
 
   // --- LOGIQUE ---
   const handleLike = () => {
@@ -33,15 +36,7 @@ const PostCard = ({ id, user: author, content, image, time, likes_count: initial
     e.preventDefault();
     if (!commentText.trim()) return;
 
-    const newComment = {
-      id: Date.now(),
-      user: { name: currentUser.name, avatar: currentUser.avatar_url }, 
-      text: commentText,
-      time: "À l'instant"
-    };
-
-    setComments([...comments, newComment]);
-    addComment(id, newComment);
+    addComment(id, commentText); 
     setCommentText("");
   };
 
@@ -147,9 +142,13 @@ const PostCard = ({ id, user: author, content, image, time, likes_count: initial
             {comments.map((cmt) => (
               <Comment 
                 key={cmt.id}
-                user={cmt.user}
-                text={cmt.text}
-                time={cmt.time}
+                id={cmt.id}
+                user={{ 
+                  name: `${cmt.user?.firstname} ${cmt.user?.lastname}`, 
+                  avatar: cmt.user?.avatar_url 
+                }}
+                text={cmt.content}
+                time={cmt.created_at}
               />
             ))}
           </div>

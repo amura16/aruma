@@ -22,7 +22,7 @@ export const ChatProvider = ({ children }) => {
           .from('conversation_participants')
           .select(`
             conversation_id,
-            conversations (
+            conversations!conversation_id (
               id,
               name,
               type,

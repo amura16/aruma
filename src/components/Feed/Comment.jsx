@@ -2,26 +2,28 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Send } from 'lucide-react';
 import Reply from './Reply';
+import { usePosts } from '../../hooks/usePosts';
+import { useAuth } from '../../context/AuthContext';
 
-const Comment = ({ user, text, time }) => {
+const Comment = ({ id, user, text, time }) => {
   const navigate = useNavigate();
+  const { likeComment } = usePosts();
+  const { user: currentUser } = useAuth();
   
   // --- ÉTATS ---
   const [isLiked, setIsLiked] = useState(false);
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [replyText, setReplyText] = useState("");
   
-  // État initial avec un exemple de réponse
-  const [replies, setReplies] = useState([
-    {
-      id: 101,
-      user: { name: "Sonia Rakoto", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sonia" },
-      text: "Je suis totalement d'accord avec toi ! 😊",
-      time: "45m"
-    }
-  ]);
+  // État initial (En attente de table replies réelle)
+  const [replies, setReplies] = useState([]);
 
   // --- ACTIONS ---
+  const handleLike = () => {
+    setIsLiked(!isLiked);
+    likeComment(id);
+  };
+
   const handleReplyAction = (targetName = null) => {
     setShowReplyInput(true);
     if (targetName) {
@@ -35,7 +37,7 @@ const Comment = ({ user, text, time }) => {
 
     const newReply = {
       id: Date.now(),
-      user: { name: "Felix Dev" }, // Utilisateur actuel simulé
+      user: { name: `${currentUser.firstname} ${currentUser.lastname}`, avatar: currentUser.avatar_url },
       text: replyText,
       time: "À l'instant"
     };
@@ -43,6 +45,7 @@ const Comment = ({ user, text, time }) => {
     setReplies([...replies, newReply]);
     setReplyText("");
     setShowReplyInput(false);
+    // TODO: Persistence pour les replies
   };
 
   return (
@@ -83,7 +86,7 @@ const Comment = ({ user, text, time }) => {
           {/* Actions du commentaire parent */}
           <div className="flex gap-4 ml-2 mt-0.5 items-center">
             <button 
-              onClick={() => setIsLiked(!isLiked)} 
+              onClick={handleLike} 
               className={`text-[12px] font-bold hover:underline transition-colors ${isLiked ? 'text-blue-600' : 'text-gray-500'}`}
             >
               {isLiked ? "Aimé" : "J'aime"}
@@ -114,7 +117,7 @@ const Comment = ({ user, text, time }) => {
       {showReplyInput && (
         <form onSubmit={handleReplySubmit} className="flex items-center gap-2 mt-2 ml-10 animate-in fade-in slide-in-from-top-1 duration-200">
           <div className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
-            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="Moi" />
+            <img src={currentUser?.avatar_url} alt="Moi" />
           </div>
           <div className="flex-1 relative">
             <input 

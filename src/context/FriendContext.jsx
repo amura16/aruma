@@ -19,19 +19,27 @@ export const FriendProvider = ({ children }) => {
           .from('invitations')
           .select(`
             *,
-            sender:sender_id (id, username, firstname, lastname, avatar_url)
+            sender:profiles!sender_id (id, username, firstname, lastname, avatar_url)
           `)
           .eq('receiver_id', user.id)
           .eq('status', 'pending');
 
-        if (error) throw error;
+        if (error) {
+          // Si la table n'existe pas encore (404), on ne crash pas
+          if (error.code === '404' || error.message.includes('not found')) {
+            console.warn("Table 'invitations' non trouvée. Elle sera ignorée.");
+            setInvitations([]);
+            return;
+          }
+          throw error;
+        }
         
         // Formater pour que le composant reçoive les bonnes clés
-        const formatted = data.map(inv => ({
+        const formatted = (data || []).map(inv => ({
           id: inv.id,
-          name: `${inv.sender.firstname} ${inv.sender.lastname}`,
-          avatar: inv.sender.avatar_url,
-          mutualFriends: 0 // Optionnel pour l'instant
+          name: `${inv.sender?.firstname || 'Inconnu'} ${inv.sender?.lastname || ''}`,
+          avatar: inv.sender?.avatar_url,
+          mutualFriends: 0 
         }));
 
         setInvitations(formatted);
