@@ -17,6 +17,7 @@ import UserProfile from './pages/userProfile';
 import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
 import NotFound from './pages/NotFound';
+import Search from './pages/Search';
 
 // Composant pour protéger les routes
 const ProtectedRoute = ({ children }) => {
@@ -56,6 +57,7 @@ function App() {
           <Route path="/saved" element={<ProtectedRoute><Saved /></ProtectedRoute>} />
           <Route path="/live" element={<ProtectedRoute><LiveStream /></ProtectedRoute>} />
           <Route path="/user/:id" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
+          <Route path="/search" element={<ProtectedRoute><Search /></ProtectedRoute>} />
 
           {/* 404 */}
           <Route path="/404" element={<NotFound />} />
