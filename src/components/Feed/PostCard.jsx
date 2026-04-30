@@ -1,28 +1,37 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, MessageCircle, Share2, MoreHorizontal, Send } from 'lucide-react';
+import { Heart, MessageCircle, Share2, MoreHorizontal, Send, Edit, Trash2, Bookmark, X, Check } from 'lucide-react';
 import Comment from './Comment';
 import { usePosts } from '../../hooks/usePosts';
 import { useAuth } from '../../context/AuthContext';
 
 const PostCard = ({ id, user: author, content, image, time, likes_count: initialLikes, isLikedByMe: initialIsLiked, comments: initialComments }) => {
   const navigate = useNavigate();
-  const { likePost, addComment } = usePosts();
+  const { likePost, addComment, deletePost, updatePost, toggleSavePost } = usePosts();
   const { user: currentUser } = useAuth();
 
-  // --- ÉTATS LOCAUX (pour réactivité immédiate avant persistence context) ---
+  // --- ÉTATS LOCAUX ---
   const [isLiked, setIsLiked] = useState(initialIsLiked);
   const [likesCount, setLikesCount] = useState(initialLikes);
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   
-  // Synchronisation avec les props (pour refléter les changements du contexte global)
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(content);
+  
+  // Normalisation des données de l'auteur pour gérer différents formats d'objets
+  const authorId = author?.id || author?.user_id;
+  const authorName = author?.name || (author?.firstname ? `${author.firstname} ${author.lastname}` : "Utilisateur ArumA");
+  const authorAvatar = author?.avatar || author?.avatar_url;
+  const isAuthor = authorId === currentUser?.id;
+
+  // Synchronisation avec les props
   React.useEffect(() => {
     setIsLiked(initialIsLiked);
     setLikesCount(initialLikes);
   }, [initialIsLiked, initialLikes]);
 
-  // La liste des commentaires vient maintenant directement des props (Supabase)
   const comments = initialComments || [];
 
   // --- LOGIQUE ---
@@ -35,13 +44,32 @@ const PostCard = ({ id, user: author, content, image, time, likes_count: initial
   const handleCommentSubmit = (e) => {
     e.preventDefault();
     if (!commentText.trim()) return;
-
     addComment(id, commentText); 
     setCommentText("");
   };
 
+  const handleDelete = () => {
+    if (window.confirm("Voulez-vous vraiment supprimer cette publication ?")) {
+      deletePost(id);
+    }
+    setIsMenuOpen(false);
+  };
+
+  const handleUpdate = () => {
+    if (!editContent.trim()) return;
+    updatePost(id, editContent);
+    setIsEditing(false);
+    setIsMenuOpen(false);
+  };
+
+  const handleSave = () => {
+    toggleSavePost(id);
+    setIsMenuOpen(false);
+    alert("Publication enregistrée !");
+  };
+
   return (
-    <div className="bg-white border border-gray-200 rounded-xl mb-4 overflow-hidden shadow-sm">
+    <div className="bg-white border border-gray-200 rounded-xl mb-4 overflow-hidden shadow-sm relative">
       
       {/* HEADER : Infos Utilisateur */}
       <div className="p-4 flex items-center justify-between">
@@ -51,32 +79,97 @@ const PostCard = ({ id, user: author, content, image, time, likes_count: initial
         >
           <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden ring-1 ring-gray-100">
             <img 
-              src={author?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${author?.name}`} 
+              src={authorAvatar || `https://api.dicebear.com/7.x/initials/svg?seed=${authorName}`} 
               className="w-full h-full object-cover" 
               alt="avatar" 
             />
           </div>
           <div>
             <h4 className="font-bold text-[14px] group-hover:underline text-gray-900">
-              {author?.name || "Utilisateur ArumA"}
+              {authorName}
             </h4>
             <p className="text-[12px] text-gray-500 font-medium">{time || "À l'instant"}</p>
           </div>
         </div>
-        <button className="p-2 hover:bg-gray-100 rounded-full transition">
-          <MoreHorizontal size={20} className="text-gray-500" />
-        </button>
+        
+        <div className="relative">
+          <button 
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="p-2 hover:bg-gray-100 rounded-full transition"
+          >
+            <MoreHorizontal size={20} className="text-gray-500" />
+          </button>
+
+          {/* MENU DÉROULANT (3 points) */}
+          {isMenuOpen && (
+            <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden py-1">
+              <button 
+                onClick={handleSave}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <Bookmark size={18} className="text-gray-500" />
+                <span className="font-medium">Enregistrer la publication</span>
+              </button>
+              
+              {isAuthor && (
+                <>
+                  <div className="h-[1px] bg-gray-100 my-1"></div>
+                  <button 
+                    onClick={() => { setIsEditing(true); setIsMenuOpen(false); }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <Edit size={18} className="text-blue-500" />
+                    <span className="font-medium">Modifier la publication</span>
+                  </button>
+                  <button 
+                    onClick={handleDelete}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    <Trash2 size={18} />
+                    <span className="font-medium">Supprimer</span>
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* CONTENU : Texte du post */}
+      {/* CONTENU : Texte du post ou Mode Édition */}
       <div className="px-4 pb-3">
-        <p className="text-[#050505] text-[15px] leading-snug whitespace-pre-wrap">
-          {content}
-        </p>
+        {isEditing ? (
+          <div className="space-y-3">
+            <textarea
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-[15px] focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              rows={3}
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button 
+                onClick={() => { setIsEditing(false); setEditContent(content); }}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-100 rounded-lg transition"
+              >
+                <X size={16} /> Annuler
+              </button>
+              <button 
+                onClick={handleUpdate}
+                className="flex items-center gap-1 px-4 py-1.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition"
+              >
+                <Check size={16} /> Enregistrer
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-[#050505] text-[15px] leading-snug whitespace-pre-wrap">
+            {content}
+          </p>
+        )}
       </div>
 
       {/* MÉDIA : Image optionnelle */}
-      {image && (
+      {image && !isEditing && (
         <div className="border-y border-gray-100 bg-gray-50">
           <img 
             src={image} 
@@ -156,7 +249,7 @@ const PostCard = ({ id, user: author, content, image, time, likes_count: initial
           {/* Formulaire de saisie */}
           <form onSubmit={handleCommentSubmit} className="flex items-center gap-2 mt-2">
             <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
-              <img src={currentUser.avatar_url} alt="Moi" />
+              <img src={currentUser?.avatar_url} alt="Moi" />
             </div>
             <div className="flex-1 relative">
               <input 

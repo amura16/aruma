@@ -2,29 +2,40 @@ import React from 'react';
 import NavBar from '../components/Layout/Navbar';
 import LivePlayer from '../components/Live/LivePlayer';
 import LiveChat from '../components/Live/LiveChat';
+import { useLocation, Navigate } from 'react-router-dom';
 
 const LiveStream = () => {
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const roomName = searchParams.get('room');
+
+  if (!roomName) {
+    return <Navigate to="/video" replace />;
+  }
+
   const currentStream = {
-    title: "Session de code intense : ArumA v3 🚀",
+    title: `Direct de ArumA`,
+    roomName: roomName,
     streamer: {
-      name: "Felix Dev",
-      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"
+      name: "Diffuseur en direct",
+      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Live"
     }
   };
 
   return (
     <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
       <NavBar />
-      
+
       <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
         {/* Partie Gauche : Vidéo et Suggestions */}
         <main className="flex-1 flex flex-col overflow-y-auto custom-scrollbar">
-          <LivePlayer 
-            streamTitle={currentStream.title} 
-            streamer={currentStream.streamer} 
+          <LivePlayer
+            streamTitle={currentStream.title}
+            streamer={currentStream.streamer}
+            roomName={currentStream.roomName}
           />
 
-          {/* Autres Lives suggérés */}
+          {/* Autres Lives suggérés (Statiques pour le moment) */}
           <div className="p-6">
             <h2 className="text-xl font-bold mb-4">Vidéos en direct suggérées</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -37,7 +48,7 @@ const LiveStream = () => {
                   <div className="p-3 flex gap-3">
                     <div className="w-10 h-10 rounded-full bg-gray-100 shrink-0" />
                     <div>
-                      <h4 className="font-bold text-sm line-clamp-2">Live spécial Gaming - Madagascar #00{i}</h4>
+                      <h4 className="font-bold text-sm line-clamp-2">Live spécial ArumA #00{i}</h4>
                       <p className="text-xs text-gray-500 mt-1">Utilisateur ArumA</p>
                     </div>
                   </div>
@@ -47,7 +58,6 @@ const LiveStream = () => {
           </div>
         </main>
 
-        {/* Partie Droite : Chat (Fixe sur Desktop) */}
         <LiveChat />
       </div>
     </div>

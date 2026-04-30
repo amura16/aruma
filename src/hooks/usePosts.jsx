@@ -2,7 +2,18 @@ import { usePostsContext } from '../context/PostContext';
 import { useAuth } from '../context/AuthContext';
 
 export const usePosts = () => {
-  const { posts, loading, error, addPost, likePost, addComment, likeComment } = usePostsContext();
+  const { 
+    posts, 
+    loading, 
+    error, 
+    addPost, 
+    likePost, 
+    addComment, 
+    likeComment,
+    updatePost,
+    deletePost,
+    toggleSavePost
+  } = usePostsContext();
   const { user } = useAuth();
 
   const createPost = async (content, image = null) => {
@@ -32,6 +43,9 @@ export const usePosts = () => {
     createPost,
     likePost: handleLike,
     addComment: handleComment,
-    likeComment: handleLikeComment
+    likeComment: handleLikeComment,
+    updatePost,
+    deletePost,
+    toggleSavePost
   };
 };

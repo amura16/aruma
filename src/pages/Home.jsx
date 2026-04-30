@@ -38,6 +38,7 @@ const Home = () => {
                 key={post.id} 
                 id={post.id}
                 user={post.author ? { 
+                  id: post.author.id,
                   name: `${post.author.firstname} ${post.author.lastname}`, 
                   avatar: post.author.avatar_url 
                 } : null} 

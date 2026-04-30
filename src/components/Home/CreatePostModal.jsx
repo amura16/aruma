@@ -1,14 +1,21 @@
 import React, { useState } from 'react';
 import { X, Image, User2, Smile, MapPin, MoreHorizontal } from 'lucide-react';
+import { usePosts } from '../../hooks/usePosts';
+import { useAuth } from '../../context/AuthContext';
 
 const CreatePostModal = ({ userAvatar, closeModal }) => {
   const [content, setContent] = useState("");
+  const { createPost } = usePosts();
+  const { user } = useAuth();
 
-  const handlePost = () => {
-    console.log("Publication envoyée :", content);
+  const handlePost = async () => {
+    if (!content.trim()) return;
+    await createPost(content);
     closeModal();
     setContent("");
   };
+
+  const userName = user ? `${user.firstname} ${user.lastname}` : "Utilisateur ArumA";
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-white/80 backdrop-blur-sm">
@@ -32,9 +39,9 @@ const CreatePostModal = ({ userAvatar, closeModal }) => {
 
         {/* User Info */}
         <div className="p-4 flex items-center gap-3">
-          <img src={userAvatar} className="w-10 h-10 rounded-full" alt="me" />
+          <img src={userAvatar} className="w-10 h-10 rounded-full object-cover" alt="me" />
           <div>
-            <p className="font-bold text-gray-900">Felix Dev</p>
+            <p className="font-bold text-gray-900">{userName}</p>
             <div className="flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-md w-fit">
               <User2 size={12} />
               <span className="text-[12px] font-semibold">Public</span>
@@ -48,7 +55,7 @@ const CreatePostModal = ({ userAvatar, closeModal }) => {
             autoFocus
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="Quoi de neuf, Felix ?"
+            placeholder={`Quoi de neuf, ${user?.firstname || '...'} ?`}
             className="w-full min-h-[150px] text-xl placeholder:text-gray-400 border-none focus:ring-0 resize-none"
           />
         </div>
