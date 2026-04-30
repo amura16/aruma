@@ -89,9 +89,6 @@ const Search = () => {
               Résultats de recherche pour <span className="text-blue-600">"{query}"</span>
             </h1>
           </div>
-          <p className="text-gray-500 ml-14">
-            Parcourez les profils, statuts et médias liés à votre recherche.
-          </p>
         </div>
 
         {/* Navigation des Onglets */}

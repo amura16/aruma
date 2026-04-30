@@ -114,7 +114,7 @@ const NavBar = () => {
           </div>
 
           <div className="md:hidden flex items-center gap-1">
-            <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition active:scale-90" onClick={() => navigate('/search')}>
+            <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition active:scale-90" onClick={() => navigate('/mobile-search')}>
               <Search size={22} />
             </button>
             <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 text-gray-600 active:scale-90 transition">
