@@ -7,7 +7,6 @@ const ProfileSidebar = ({
   user,
   photos = [], 
   videos = [], 
-  visibleCount = 9, 
   isOwner = false 
 }) => {
   const { updateProfile } = useAuth();
@@ -28,7 +27,7 @@ const ProfileSidebar = ({
   };
 
   return (
-    <aside className="md:col-span-5 space-y-4">
+    <aside className="space-y-4">
       
       {/* --- SECTION INTRO / BIO --- */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
@@ -82,11 +81,11 @@ const ProfileSidebar = ({
         )}
       </div>
 
-      {/* --- GRILLE PHOTOS --- */}
+      {/* --- GRILLE PHOTOS (Rétablie) --- */}
       {photos.length > 0 ? (
         <MediaGrid 
           title="Photos" 
-          items={photos.slice(0, visibleCount)} 
+          items={photos} 
           type="image" 
         />
       ) : (
@@ -96,11 +95,11 @@ const ProfileSidebar = ({
         </div>
       )}
 
-      {/* --- GRILLE VIDÉOS --- */}
+      {/* --- GRILLE VIDÉOS (Rétablie) --- */}
       {videos.length > 0 && (
         <MediaGrid 
           title="Vidéos" 
-          items={videos.slice(0, visibleCount)} 
+          items={videos} 
           type="video" 
         />
       )}

@@ -23,7 +23,7 @@ const CreatePost = ({ userAvatar }) => {
       <div className="bg-white rounded-xl shadow-sm p-4 mb-4 border border-gray-200">
         <div className="flex gap-3 border-b border-gray-100 pb-4 mb-2">
           <img src={userAvatar} className="w-10 h-10 rounded-full object-cover" alt="me" />
-          <input 
+          <input
             className="bg-[#F0F2F5] hover:bg-gray-200 flex-1 text-left px-4 rounded-full text-gray-500 text-[17px] focus:outline-none"
             placeholder={`Quoi de neuf, ${user?.firstname || '...'} ?`}
             value={content}
@@ -31,10 +31,10 @@ const CreatePost = ({ userAvatar }) => {
             onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
           />
         </div>
-        
+
         <div className="flex justify-between">
           {/* Action : Ouvrir la caméra */}
-          <button 
+          <button
             onClick={() => setIsLiveOpen(true)}
             className="flex-1 flex items-center justify-center gap-2 hover:bg-gray-100 py-2 rounded-lg transition"
           >
@@ -55,7 +55,7 @@ const CreatePost = ({ userAvatar }) => {
       </div>
 
       {isModalOpen && <CreatePostModal userAvatar={userAvatar} closeModal={() => setIsModalOpen(false)} />}
-      
+
       {/* Fenêtre de Caméra Direct */}
       {isLiveOpen && <LiveVideoModal closeModal={() => setIsLiveOpen(false)} />}
     </>

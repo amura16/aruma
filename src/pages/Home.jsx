@@ -21,9 +21,9 @@ const Home = () => {
   return (
     <div className="min-h-screen bg-[#F0F2F5]">
       <NavBar />
-      
+
       <main className="max-w-[1600px] mx-auto grid grid-cols-1 md:grid-cols-12 gap-4 px-4">
-        
+
         <SidebarLeft />
 
         {/* --- FLUX CENTRAL --- */}
@@ -31,20 +31,20 @@ const Home = () => {
           <CreatePost userAvatar={myAvatar} />
 
           {loading && <div className="text-center py-10">Chargement des posts...</div>}
-          
+
           <div className="space-y-4">
             {posts.map((post) => (
-              <PostCard 
-                key={post.id} 
+              <PostCard
+                key={post.id}
                 id={post.id}
-                user={post.author ? { 
+                user={post.author ? {
                   id: post.author.id,
-                  name: `${post.author.firstname} ${post.author.lastname}`, 
-                  avatar: post.author.avatar_url 
-                } : null} 
-                content={post.content} 
-                image={post.image_url} 
-                time={post.created_at} 
+                  name: `${post.author.firstname} ${post.author.lastname}`,
+                  avatar: post.author.avatar_url
+                } : null}
+                content={post.content}
+                image={post.image_url}
+                time={post.created_at}
                 likes_count={post.likes_count}
                 isLikedByMe={post.isLikedByMe}
                 comments={post.comments}

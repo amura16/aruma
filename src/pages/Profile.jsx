@@ -12,13 +12,16 @@ const Profile = () => {
   // Filter posts to show only user's posts
   const userPosts = posts.filter(post => post.author?.id === currentUser.id);
 
-  // Extraire dynamiquement les photos à partir des posts de l'utilisateur
+  // Extraire dynamiquement les médias à partir des posts de l'utilisateur
+  const videoExtensions = ['mp4', 'webm', 'ogg', 'mov'];
+  
   const userPhotos = userPosts
-    .filter(post => post.image_url)
+    .filter(post => post.image_url && !videoExtensions.some(ext => post.image_url.toLowerCase().endsWith(ext)))
     .map(post => ({ url: post.image_url }));
 
-  // Pour l'instant on garde une liste vide pour les vidéos si non supportées dans les posts
-  const userVideos = [];
+  const userVideos = userPosts
+    .filter(post => post.image_url && videoExtensions.some(ext => post.image_url.toLowerCase().endsWith(ext)))
+    .map(post => ({ url: post.image_url }));
 
   return (
     <div className="min-h-screen bg-[#F0F2F5]">
@@ -26,20 +29,22 @@ const Profile = () => {
 
       <main className="max-w-[1100px] mx-auto grid grid-cols-1 md:grid-cols-12 gap-4 mt-4 px-4">
         
-        <ProfileSidebar 
-          user={currentUser}
-          photos={userPhotos} 
-          videos={userVideos}
-          isOwner={true}
-        />
+        <div className="md:col-span-12 lg:col-span-5">
+          <ProfileSidebar
+            user={currentUser}
+            photos={userPhotos}
+            videos={userVideos}
+            isOwner={true}
+          />
+        </div>
 
-        <section className="md:col-span-7 space-y-4">
+        <section className="md:col-span-12 lg:col-span-7 space-y-4">
           {userPosts.map(post => (
-            <PostCard 
+            <PostCard
               key={post.id}
               id={post.id}
-              user={post.author} 
-              content={post.content} 
+              user={post.author}
+              content={post.content}
               image={post.image_url}
               time={post.created_at}
               likes_count={post.likes_count}

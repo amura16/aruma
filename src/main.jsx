@@ -6,17 +6,20 @@ import { AuthProvider } from './context/AuthContext'
 import { PostProvider } from './context/PostContext'
 import { ChatProvider } from './context/ChatContext'
 import { FriendProvider } from './context/FriendContext'
+import { ThemeProvider } from './context/ThemeContext'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <AuthProvider>
-      <PostProvider>
-        <ChatProvider>
-          <FriendProvider>
-            <App />
-          </FriendProvider>
-        </ChatProvider>
-      </PostProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <PostProvider>
+          <ChatProvider>
+            <FriendProvider>
+              <App />
+            </FriendProvider>
+          </ChatProvider>
+        </PostProvider>
+      </AuthProvider>
+    </ThemeProvider>
   </StrictMode>,
 )

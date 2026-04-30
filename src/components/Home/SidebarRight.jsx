@@ -36,11 +36,11 @@ const SidebarRight = () => {
 
         <div className="space-y-1">
           {contacts.map((contact, i) => (
-            <ContactLine 
-              key={i} 
-              name={contact.name} 
-              avatar={`https://api.dicebear.com/7.x/avataaars/svg?seed=${contact.seed}`} 
-              isOnline={contact.online} 
+            <ContactLine
+              key={i}
+              name={contact.name}
+              avatar={`https://api.dicebear.com/7.x/avataaars/svg?seed=${contact.seed}`}
+              isOnline={contact.online}
             />
           ))}
         </div>

@@ -74,11 +74,10 @@ const NavBar = () => {
 
           <div className="hidden md:flex items-center gap-2 relative">
             <div className="relative">
-              <div 
+              <div
                 onClick={() => setShowDropdown(!showDropdown)}
-                className={`w-10 h-10 rounded-full border-2 cursor-pointer overflow-hidden transition-all duration-200 ${
-                  location.pathname === '/profile' ? 'border-blue-600 scale-110' : 'border-transparent hover:bg-gray-100'
-                }`}
+                className={`w-10 h-10 rounded-full border-2 cursor-pointer overflow-hidden transition-all duration-200 ${location.pathname === '/profile' ? 'border-blue-600 scale-110' : 'border-transparent hover:bg-gray-100'
+                  }`}
               >
                 <img src={user?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default'} alt="Profil" />
               </div>
@@ -94,11 +93,11 @@ const NavBar = () => {
                         <span className="text-xs text-gray-500">Compte ArumA</span>
                       </div>
                     </div>
-                    
+
                     <button onClick={() => { navigate('/profile'); setShowDropdown(false); }} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-[15px] font-semibold text-gray-700">
                       <div className="p-2 bg-gray-100 rounded-full"><User size={20} /></div> Mon profil
                     </button>
-                    
+
                     <button onClick={() => { navigate('/setting'); setShowDropdown(false); }} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-[15px] font-semibold text-gray-700">
                       <div className="p-2 bg-gray-100 rounded-full"><Settings size={20} /></div> Paramètres
                     </button>

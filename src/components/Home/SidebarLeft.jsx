@@ -5,7 +5,7 @@ import { useFriends } from '../../hooks/useFriends';
 import { useNavigate } from 'react-router-dom';
 
 const SidebarLink = ({ icon, label, img, onClick }) => (
-  <div 
+  <div
     onClick={onClick}
     className="flex items-center gap-3 p-3 hover:bg-gray-200 rounded-xl cursor-pointer transition-all duration-200"
   >
@@ -30,13 +30,13 @@ const InvitationCard = ({ name, mutualFriends, avatar, onConfirm, onDelete }) =>
       </div>
     </div>
     <div className="flex gap-2">
-      <button 
+      <button
         onClick={onConfirm}
         className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 rounded-lg transition"
       >
         Confirmer
       </button>
-      <button 
+      <button
         onClick={onDelete}
         className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-bold py-2 rounded-lg transition"
       >
@@ -54,50 +54,50 @@ const SidebarLeft = () => {
   return (
     <aside className="hidden lg:block lg:col-span-3 sticky top-[112px] self-start h-[calc(100vh-112px)]">
       <div className="h-full overflow-y-auto pr-2 custom-scrollbar py-2">
-        <SidebarLink 
-          img={user?.avatar_url} 
-          label={user ? `${user.firstname} ${user.lastname}` : 'Mon Profil'} 
-          onClick={() => navigate('/profile')} 
+        <SidebarLink
+          img={user?.avatar_url}
+          label={user ? `${user.firstname} ${user.lastname}` : 'Mon Profil'}
+          onClick={() => navigate('/profile')}
         />
-        <SidebarLink 
-          icon={<Users className="text-blue-500" />} 
-          label="Amis" 
+        <SidebarLink
+          icon={<Users className="text-blue-500" />}
+          label="Amis"
           onClick={() => navigate('/friend')}
         />
-        <SidebarLink 
-          icon={<Video className="text-red-500" />} 
-          label="Vidéo live" 
+        <SidebarLink
+          icon={<Video className="text-red-500" />}
+          label="Vidéo live"
           onClick={() => navigate('/video')}
         />
-        <SidebarLink 
-          icon={<Bookmark className="text-purple-500" />} 
-          label="Enregistrement" 
+        <SidebarLink
+          icon={<Bookmark className="text-purple-500" />}
+          label="Enregistrement"
           onClick={() => navigate('/saved')}
         />
-        <SidebarLink 
-          icon={<Settings className="text-gray-600" />} 
-          label="Paramètres" 
+        <SidebarLink
+          icon={<Settings className="text-gray-600" />}
+          label="Paramètres"
           onClick={() => navigate('/setting')}
         />
-        
+
         <hr className="my-4 border-gray-300 mx-2" />
-        
+
         <div className="px-2 mb-4 flex justify-between items-center text-gray-500 font-bold text-[16px]">
           <h3>Invitations</h3>
-          <button 
+          <button
             onClick={() => navigate('/friend')}
             className="text-blue-600 text-xs font-normal hover:underline"
           >
             Voir tout
           </button>
         </div>
-        
+
         {invitations.slice(0, 2).map(inv => (
-          <InvitationCard 
+          <InvitationCard
             key={inv.id}
-            name={inv.name} 
-            mutualFriends={inv.mutualFriends} 
-            avatar={inv.avatar} 
+            name={inv.name}
+            mutualFriends={inv.mutualFriends}
+            avatar={inv.avatar}
             onConfirm={() => acceptInvitation(inv.id)}
             onDelete={() => declineInvitation(inv.id)}
           />

@@ -2,16 +2,19 @@ import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Camera, Edit2, UserPlus, UserCheck, 
-  MessageCircle, MoreHorizontal, Loader2
+  MessageCircle, MoreHorizontal, Loader2, X, Users
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useFriends } from '../../hooks/useFriends';
 import { supabase } from '../../services/supabaseClient';
 
 const ProfileHeader = ({ user, isOwner = false }) => {
   const navigate = useNavigate();
   const { updateProfile } = useAuth();
+  const { friends = [], loading: friendsLoading } = useFriends();
   const [isFriend, setIsFriend] = useState(false);
   const [uploading, setUploading] = useState({ type: '', status: false });
+  const [showFriendsList, setShowFriendsList] = useState(false);
   
   const avatarInputRef = useRef(null);
   const coverInputRef = useRef(null);
@@ -26,21 +29,17 @@ const ProfileHeader = ({ user, isOwner = false }) => {
       const fileName = `${user.id}-${type}-${Math.random()}.${fileExt}`;
       const filePath = `profiles/${fileName}`;
 
-      // 1. Upload
       const { error: uploadError } = await supabase.storage
-        .from('avatars') // On réutilise le bucket avatars ou profiles
+        .from('avatars')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
-      // 2. URL
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
       
       const finalUrl = `${publicUrl}?t=${Date.now()}`;
-
-      // 3. Update DB
       const field = type === 'avatar' ? 'avatar_url' : 'cover_url';
       await updateProfile({ [field]: finalUrl });
 
@@ -56,7 +55,7 @@ const ProfileHeader = ({ user, isOwner = false }) => {
       <div className="max-w-[1100px] mx-auto">
         
         {/* --- SECTION COUVERTURE --- */}
-        <div className="relative h-[200px] md:h-[380px] bg-gray-200 rounded-b-xl overflow-hidden group">
+        <div className="relative h-[200px] md:h-[380px] bg-gray-200 rounded-b-xl overflow-hidden">
           <img 
             src={user?.cover_url || "https://images.unsplash.com/photo-1557683316-973673baf926"} 
             className={`w-full h-full object-cover transition-opacity ${uploading.type === 'cover' ? 'opacity-50' : 'opacity-100'}`} 
@@ -77,7 +76,7 @@ const ProfileHeader = ({ user, isOwner = false }) => {
         </div>
 
         {/* --- SECTION INFOS & ACTIONS --- */}
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-6">
           <div className="flex flex-col md:flex-row items-center md:items-end gap-4 relative">
             
             {/* Conteneur Avatar */}
@@ -114,9 +113,12 @@ const ProfileHeader = ({ user, isOwner = false }) => {
               <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
                 {user ? `${user.firstname} ${user.lastname}` : "Chargement..."}
               </h1>
-              <p className="text-gray-600 font-semibold text-[15px] hover:underline cursor-pointer">
-                {isOwner ? "Gérer mon profil" : "1.2k amis"}
-              </p>
+              <button 
+                onClick={() => setShowFriendsList(true)}
+                className="text-gray-600 font-bold text-[16px] hover:underline cursor-pointer bg-transparent border-none p-0"
+              >
+                {friends.length} {friends.length > 1 ? 'amis' : 'ami'}
+              </button>
             </div>
 
             {/* Boutons d'actions */}
@@ -148,17 +150,60 @@ const ProfileHeader = ({ user, isOwner = false }) => {
             </div>
           </div>
         </div>
-        
-        <hr className="mx-4 border-gray-100" />
-        
-        <div className="flex gap-1 md:gap-4 px-2 md:px-4 py-1 font-semibold text-gray-600 overflow-x-auto scrollbar-hide">
-          <button className="p-3 md:p-4 border-b-4 border-blue-600 text-blue-600 whitespace-nowrap">Publications</button>
-          <button className="p-3 md:p-4 hover:bg-gray-100 rounded-lg whitespace-nowrap">À propos</button>
-          <button className="p-3 md:p-4 hover:bg-gray-100 rounded-lg whitespace-nowrap">Amis</button>
-          <button className="p-3 md:p-4 hover:bg-gray-100 rounded-lg whitespace-nowrap">Photos</button>
-          <button className="p-3 md:p-4 hover:bg-gray-100 rounded-lg whitespace-nowrap">Vidéos</button>
-        </div>
       </div>
+
+      {/* --- MODALE : LISTE DES AMIS --- */}
+      {showFriendsList && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowFriendsList(false)}></div>
+          
+          <div className="bg-white w-full max-w-[500px] max-h-[80vh] rounded-2xl shadow-2xl overflow-hidden relative z-10 flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <Users size={24} className="text-blue-600" />
+                Liste d'amis ({friends.length})
+              </h2>
+              <button onClick={() => setShowFriendsList(false)} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full transition">
+                <X size={20} className="text-gray-600" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
+              {friends.length > 0 ? (
+                <div className="space-y-1">
+                  {friends.map((friend) => (
+                    <div 
+                      key={friend.id}
+                      onClick={() => { navigate(`/profile`); setShowFriendsList(false); }}
+                      className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl cursor-pointer transition"
+                    >
+                      <div className="flex items-center gap-3">
+                        <img 
+                          src={friend.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${friend.firstname}`} 
+                          className="w-12 h-12 rounded-full object-cover" 
+                          alt="" 
+                        />
+                        <span className="font-bold text-gray-900">{friend.firstname} {friend.lastname}</span>
+                      </div>
+                      <button className="bg-gray-100 px-4 py-1.5 rounded-lg text-sm font-bold text-gray-700 hover:bg-gray-200">
+                        Voir profil
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500 italic">
+                  Aucun ami à afficher.
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-center">
+              <button onClick={() => setShowFriendsList(false)} className="text-gray-600 font-bold hover:underline">Fermer</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
