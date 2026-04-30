@@ -14,49 +14,27 @@ export const PostProvider = ({ children }) => {
     try {
       setLoading(true);
 
-      // 1. Récupérer les posts et les auteurs
       const { data: postsData, error: postsError } = await supabase
         .from("posts")
         .select(`
           *,
-          author:profiles!user_id (id, username, firstname, lastname, avatar_url)
+          author:profiles!user_id (id, username, firstname, lastname, avatar_url),
+          likes (user_id),
+          comments (
+            *,
+            user:profiles!user_id (id, username, firstname, lastname, avatar_url)
+          )
         `)
         .order("created_at", { ascending: false });
 
       if (postsError) throw postsError;
       if (!postsData) return setPosts([]);
 
-      const postIds = postsData.map(p => p.id);
-
-      // 2. Récupérer les likes pour ces posts
-      const { data: likesData, error: likesError } = await supabase
-        .from("likes")
-        .select("post_id, user_id")
-        .in("post_id", postIds);
-
-      if (likesError) {
-        console.error("Erreur lors de la récupération des likes (RLS ?) :", likesError.message);
-      }
-
-      // 3. Récupérer les commentaires pour ces posts
-      const { data: commentsData, error: commentsError } = await supabase
-        .from("comments")
-        .select(`
-          *,
-          user:profiles!user_id (id, username, firstname, lastname, avatar_url)
-        `)
-        .in("post_id", postIds);
-
-      if (commentsError) {
-        console.error("Erreur lors de la récupération des commentaires :", commentsError.message);
-      }
-
-      // 4. Assemblage manuel
       const formattedPosts = postsData.map(post => ({
         ...post,
-        likes_count: post.likes_count || 0, // Utiliser le compteur de la table posts
-        isLikedByMe: likesData?.some(l => l.post_id === post.id && l.user_id === user?.id) || false,
-        comments: commentsData?.filter(c => c.post_id === post.id) || []
+        likes_count: post.likes_count || 0,
+        isLikedByMe: post.likes?.some(l => l.user_id === user?.id) || false,
+        comments: post.comments || []
       }));
 
       setPosts(formattedPosts);
@@ -98,49 +76,103 @@ export const PostProvider = ({ children }) => {
     }
 
     try {
-      // STRATÉGIE ATOMIQUE : On tente l'insertion directement
-      const { error: insertError } = await supabase
+      // 1. Vérifier si l'utilisateur a déjà liké ce post
+      const { data: existingLike, error: checkError } = await supabase
         .from('likes')
-        .insert([{ post_id: postId, user_id: targetUserId }]);
+        .select('id')
+        .eq('post_id', postId)
+        .eq('user_id', targetUserId)
+        .maybeSingle();
 
-      if (insertError) {
-        // Code 23505 ou 409 = Le like existe déjà -> ACTION : UNLIKE
-        if (insertError.code === '23505' || insertError.status === 409) {
+      if (checkError) throw checkError;
 
-          const { error: unlikeError } = await supabase
-            .from('likes')
-            .delete()
-            .match({ post_id: postId, user_id: targetUserId });
+      // 2. Récupérer le compteur actuel du post
+      const { data: currentPost, error: postFetchError } = await supabase
+        .from('posts')
+        .select('likes_count')
+        .eq('id', postId)
+        .single();
+        
+      if (postFetchError) throw postFetchError;
+      
+      const currentCount = currentPost.likes_count || 0;
 
-          if (unlikeError) throw unlikeError;
+      if (existingLike) {
+        // 3a. S'il a déjà liké -> UNLIKE
+        const { error: deleteError } = await supabase
+          .from('likes')
+          .delete()
+          .eq('post_id', postId)
+          .eq('user_id', targetUserId);
+          
+        if (deleteError) throw deleteError;
 
-          // Décrémentation atomique via RPC (Postgres)
-          const { error: rpcError } = await supabase.rpc('decrement_likes', { p_id: postId });
-          if (rpcError) console.error("Erreur RPC decrement_likes (Vérifiez le nom du paramètre dans SQL) :", rpcError.message);
+        // Mettre à jour le compteur manuellement (-1)
+        const newCount = Math.max(0, currentCount - 1);
+        const { error: updateError } = await supabase
+          .from('posts')
+          .update({ likes_count: newCount })
+          .eq('id', postId);
+          
+        if (updateError) console.error("Erreur mise à jour compteur:", updateError.message);
 
-          // Mise à jour locale
-          setPosts(prev => prev.map(p => 
-            Number(p.id) === Number(postId) 
-              ? { ...p, likes_count: Math.max(0, (p.likes_count || 0) - 1), isLikedByMe: false } 
-              : p
-          ));
-
-        } else {
-          throw insertError;
-        }
       } else {
-        // --- ACTION : LIKE RÉUSSI ---
-        // Incrémentation atomique via RPC (Postgres)
-        const { error: rpcError } = await supabase.rpc('increment_likes', { p_id: postId });
-        if (rpcError) console.error("Erreur RPC increment_likes (Vérifiez le nom du paramètre dans SQL) :", rpcError.message);
+        // 3b. S'il n'a pas encore liké -> LIKE
+        const { error: insertError } = await supabase
+          .from('likes')
+          .insert([{ post_id: postId, user_id: targetUserId }]);
+          
+        if (insertError) {
+          // Si on obtient une erreur de duplication, c'est que la ligne existe (même si le SELECT RLS nous l'a cachée)
+          if (insertError.code === '23505' || insertError.status === 409) {
+            // ACTION : UNLIKE (Sécurité / Fallback)
+            const { error: deleteErrorFallback } = await supabase
+              .from('likes')
+              .delete()
+              .eq('post_id', postId)
+              .eq('user_id', targetUserId);
+              
+            if (deleteErrorFallback) throw deleteErrorFallback;
 
-        // Mise à jour locale
-        setPosts(prev => prev.map(p => 
-          Number(p.id) === Number(postId) 
-            ? { ...p, likes_count: (p.likes_count || 0) + 1, isLikedByMe: true } 
-            : p
-        ));
+            const newCountFallback = Math.max(0, currentCount - 1);
+            await supabase.from('posts').update({ likes_count: newCountFallback }).eq('id', postId);
+          } else {
+            throw insertError;
+          }
+        } else {
+          // L'insertion a réussi : Mettre à jour le compteur manuellement (+1)
+          const newCount = currentCount + 1;
+          const { error: updateError } = await supabase
+            .from('posts')
+            .update({ likes_count: newCount })
+            .eq('id', postId);
+
+          if (updateError) console.error("Erreur mise à jour compteur:", updateError.message);
+        }
       }
+
+      // 3. Récupération de l'état actualisé depuis la base de données (seule source de vérité)
+      const { data: postData, error: postError } = await supabase
+        .from("posts")
+        .select(`
+          likes_count,
+          likes (user_id)
+        `)
+        .eq("id", postId)
+        .single();
+
+      if (postError) throw postError;
+
+      const updatedLikesCount = postData.likes_count || 0;
+      const updatedIsLikedByMe = postData.likes?.some(l => l.user_id === targetUserId) || false;
+
+      // 4. Mettre à jour l'affichage en fonction de la base de données
+      setPosts(prev => prev.map(p => 
+        Number(p.id) === Number(postId) 
+          ? { ...p, likes_count: updatedLikesCount, isLikedByMe: updatedIsLikedByMe } 
+          : p
+      ));
+
     } catch (err) {
       console.error("Erreur globale lors du like/unlike :", err.message);
     }

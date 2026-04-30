@@ -155,3 +155,15 @@ CREATE POLICY "Users can view their invitations" ON invitations FOR SELECT
 CREATE POLICY "Users can send invitations" ON invitations FOR INSERT WITH CHECK (auth.uid() = sender_id);
 CREATE POLICY "Users can update their received invitations" ON invitations FOR UPDATE 
   USING (auth.uid() = receiver_id);
+
+-- Likes (Politiques ajoutées)
+CREATE POLICY "Likes are viewable by everyone" ON likes FOR SELECT USING (true);
+CREATE POLICY "Users can insert their own likes" ON likes FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own likes" ON likes FOR DELETE USING (auth.uid() = user_id);
+
+-- Comments (Politiques ajoutées)
+CREATE POLICY "Comments are viewable by everyone" ON comments FOR SELECT USING (true);
+CREATE POLICY "Users can insert their own comments" ON comments FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own comments" ON comments FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Users can update their own comments" ON comments FOR UPDATE USING (auth.uid() = user_id);
+

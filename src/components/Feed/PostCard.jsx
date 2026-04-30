@@ -5,14 +5,12 @@ import Comment from './Comment';
 import { usePosts } from '../../hooks/usePosts';
 import { useAuth } from '../../context/AuthContext';
 
-const PostCard = ({ id, user: author, content, image, time, likes_count: initialLikes, isLikedByMe: initialIsLiked, comments: initialComments }) => {
+const PostCard = ({ id, user: author, content, image, time, likes_count, isLikedByMe, comments: initialComments }) => {
   const navigate = useNavigate();
   const { likePost, addComment, deletePost, updatePost, toggleSavePost } = usePosts();
   const { user: currentUser } = useAuth();
 
   // --- ÉTATS LOCAUX ---
-  const [isLiked, setIsLiked] = useState(initialIsLiked);
-  const [likesCount, setLikesCount] = useState(initialLikes);
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
 
@@ -26,19 +24,11 @@ const PostCard = ({ id, user: author, content, image, time, likes_count: initial
   const authorAvatar = author?.avatar || author?.avatar_url;
   const isAuthor = authorId === currentUser?.id;
 
-  // Synchronisation avec les props
-  React.useEffect(() => {
-    setIsLiked(initialIsLiked);
-    setLikesCount(initialLikes);
-  }, [initialIsLiked, initialLikes]);
-
   const comments = initialComments || [];
 
   // --- LOGIQUE ---
-  const handleLike = () => {
-    setIsLiked(!isLiked);
-    setLikesCount(prev => isLiked ? prev - 1 : prev + 1);
-    likePost(id);
+  const handleLike = async () => {
+    await likePost(id);
   };
 
   const handleCommentSubmit = (e) => {
@@ -182,12 +172,12 @@ const PostCard = ({ id, user: author, content, image, time, likes_count: initial
       {/* STATS : Likes & Commentaires */}
       <div className="px-4 py-2 flex items-center justify-between text-gray-500 text-sm">
         <div className="flex items-center gap-1.5">
-          {likesCount > 0 && (
+          {likes_count > 0 && (
             <>
               <div className="bg-blue-500 p-1 rounded-full">
                 <Heart size={10} className="text-white fill-current" />
               </div>
-              <span>{likesCount}</span>
+              <span>{likes_count}</span>
             </>
           )}
         </div>
@@ -201,11 +191,11 @@ const PostCard = ({ id, user: author, content, image, time, likes_count: initial
         <div className="flex w-full">
           <button
             onClick={handleLike}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 font-semibold text-sm rounded-md transition ${isLiked ? 'text-red-500 bg-red-50' : 'text-gray-600 hover:bg-gray-100'
+            className={`flex-1 flex items-center justify-center gap-2 py-2 font-semibold text-sm rounded-md transition ${isLikedByMe ? 'text-red-500 bg-red-50' : 'text-gray-600 hover:bg-gray-100'
               }`}
           >
-            <Heart size={20} className={isLiked ? "fill-current" : ""} />
-            <span>{isLiked ? 'Aimé' : 'J\'aime'}</span>
+            <Heart size={20} className={isLikedByMe ? "fill-current" : ""} />
+            <span>{isLikedByMe ? 'Aimé' : 'J\'aime'}</span>
           </button>
 
           <button
