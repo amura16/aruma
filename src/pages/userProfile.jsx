@@ -57,8 +57,19 @@ const UserProfile = () => {
     lastname: profileUser.lastname,
     avatar_url: profileUser.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${profileUser.firstname}`,
     cover_url: profileUser.cover_url || "https://images.unsplash.com/photo-1494790108377-be9c29b29330",
-    bio: profileUser.bio || "Cet utilisateur n'a pas encore de bio."
+    bio: profileUser.bio
   };
+
+  // Extraire dynamiquement les médias à partir des posts de cet utilisateur
+  const videoExtensions = ['mp4', 'webm', 'ogg', 'mov'];
+  
+  const userPhotos = userPosts
+    .filter(post => post.image_url && !videoExtensions.some(ext => post.image_url.toLowerCase().endsWith(ext)))
+    .map(post => ({ url: post.image_url }));
+
+  const userVideos = userPosts
+    .filter(post => post.image_url && videoExtensions.some(ext => post.image_url.toLowerCase().endsWith(ext)))
+    .map(post => ({ url: post.image_url }));
 
   return (
     <div className="min-h-screen bg-[#F0F2F5]">
@@ -68,14 +79,16 @@ const UserProfile = () => {
 
       <main className="max-w-[1100px] mx-auto grid grid-cols-1 md:grid-cols-12 gap-4 mt-4 px-4 pb-10">
         
-        <ProfileSidebar 
-          bio={displayUser.bio}
-          photos={[]} // À connecter à la table files si besoin plus tard
-          videos={[]}
-          isOwner={false}
-        />
+        <div className="md:col-span-12 lg:col-span-5">
+          <ProfileSidebar 
+            user={displayUser}
+            photos={userPhotos}
+            videos={userVideos}
+            isOwner={false}
+          />
+        </div>
 
-        <section className="md:col-span-7 space-y-4">
+        <section className="md:col-span-12 lg:col-span-7 space-y-4">
           {userPosts.length === 0 ? (
             <div className="bg-white p-6 rounded-xl text-center text-gray-500 border border-gray-200">
               Cet utilisateur n'a pas encore publié de post.
