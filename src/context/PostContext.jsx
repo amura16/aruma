@@ -75,8 +75,23 @@ export const PostProvider = ({ children }) => {
       return;
     }
 
+    // --- 1. MISE À JOUR OPTIMISTE (Interface instantanée) ---
+    // On sauvegarde le post original pour pouvoir annuler en cas d'erreur
+    const originalPost = posts.find(p => Number(p.id) === Number(postId));
+    if (!originalPost) return;
+
+    const isCurrentlyLiked = originalPost.isLikedByMe;
+    const optimisticLikesCount = Math.max(0, isCurrentlyLiked ? (originalPost.likes_count - 1) : (originalPost.likes_count + 1));
+
+    // On met à jour l'état immédiatement sans attendre la BDD
+    setPosts(prev => prev.map(p => 
+      Number(p.id) === Number(postId) 
+        ? { ...p, likes_count: optimisticLikesCount, isLikedByMe: !isCurrentlyLiked } 
+        : p
+    ));
+
     try {
-      // 1. Vérifier si l'utilisateur a déjà liké ce post
+      // --- 2. OPÉRATIONS BASE DE DONNÉES EN ARRIÈRE-PLAN ---
       const { data: existingLike, error: checkError } = await supabase
         .from('likes')
         .select('id')
@@ -86,7 +101,6 @@ export const PostProvider = ({ children }) => {
 
       if (checkError) throw checkError;
 
-      // 2. Récupérer le compteur actuel du post
       const { data: currentPost, error: postFetchError } = await supabase
         .from('posts')
         .select('likes_count')
@@ -94,11 +108,10 @@ export const PostProvider = ({ children }) => {
         .single();
         
       if (postFetchError) throw postFetchError;
-      
       const currentCount = currentPost.likes_count || 0;
 
       if (existingLike) {
-        // 3a. S'il a déjà liké -> UNLIKE
+        // Le like existe -> on l'enlève (UNLIKE)
         const { error: deleteError } = await supabase
           .from('likes')
           .delete()
@@ -107,74 +120,52 @@ export const PostProvider = ({ children }) => {
           
         if (deleteError) throw deleteError;
 
-        // Mettre à jour le compteur manuellement (-1)
         const newCount = Math.max(0, currentCount - 1);
-        const { error: updateError } = await supabase
-          .from('posts')
-          .update({ likes_count: newCount })
-          .eq('id', postId);
-          
-        if (updateError) console.error("Erreur mise à jour compteur:", updateError.message);
-
+        await supabase.from('posts').update({ likes_count: newCount }).eq('id', postId);
       } else {
-        // 3b. S'il n'a pas encore liké -> LIKE
+        // Le like n'existe pas -> on l'ajoute (LIKE)
         const { error: insertError } = await supabase
           .from('likes')
           .insert([{ post_id: postId, user_id: targetUserId }]);
           
         if (insertError) {
-          // Si on obtient une erreur de duplication, c'est que la ligne existe (même si le SELECT RLS nous l'a cachée)
           if (insertError.code === '23505' || insertError.status === 409) {
-            // ACTION : UNLIKE (Sécurité / Fallback)
-            const { error: deleteErrorFallback } = await supabase
-              .from('likes')
-              .delete()
-              .eq('post_id', postId)
-              .eq('user_id', targetUserId);
-              
-            if (deleteErrorFallback) throw deleteErrorFallback;
-
+            // S'il existait déjà (mais caché), on le supprime (fallback)
+            await supabase.from('likes').delete().eq('post_id', postId).eq('user_id', targetUserId);
             const newCountFallback = Math.max(0, currentCount - 1);
             await supabase.from('posts').update({ likes_count: newCountFallback }).eq('id', postId);
           } else {
             throw insertError;
           }
         } else {
-          // L'insertion a réussi : Mettre à jour le compteur manuellement (+1)
           const newCount = currentCount + 1;
-          const { error: updateError } = await supabase
-            .from('posts')
-            .update({ likes_count: newCount })
-            .eq('id', postId);
-
-          if (updateError) console.error("Erreur mise à jour compteur:", updateError.message);
+          await supabase.from('posts').update({ likes_count: newCount }).eq('id', postId);
         }
       }
 
-      // 3. Récupération de l'état actualisé depuis la base de données (seule source de vérité)
-      const { data: postData, error: postError } = await supabase
+      // --- 3. SYNCHRONISATION FINALE SILENCIEUSE ---
+      // On s'assure que le chiffre final est bien celui de la DB au cas où il y ait eu d'autres clics simultanés
+      const { data: finalPostData, error: finalError } = await supabase
         .from("posts")
-        .select(`
-          likes_count,
-          likes (user_id)
-        `)
+        .select(`likes_count, likes (user_id)`)
         .eq("id", postId)
         .single();
 
-      if (postError) throw postError;
-
-      const updatedLikesCount = postData.likes_count || 0;
-      const updatedIsLikedByMe = postData.likes?.some(l => l.user_id === targetUserId) || false;
-
-      // 4. Mettre à jour l'affichage en fonction de la base de données
-      setPosts(prev => prev.map(p => 
-        Number(p.id) === Number(postId) 
-          ? { ...p, likes_count: updatedLikesCount, isLikedByMe: updatedIsLikedByMe } 
-          : p
-      ));
+      if (!finalError && finalPostData) {
+        setPosts(prev => prev.map(p => 
+          Number(p.id) === Number(postId) 
+            ? { ...p, likes_count: finalPostData.likes_count || 0, isLikedByMe: finalPostData.likes?.some(l => l.user_id === targetUserId) || false } 
+            : p
+        ));
+      }
 
     } catch (err) {
       console.error("Erreur globale lors du like/unlike :", err.message);
+      // --- ROLLBACK EN CAS D'ERREUR ---
+      // Si la requête échoue, on remet le post dans son état d'origine
+      setPosts(prev => prev.map(p => 
+        Number(p.id) === Number(postId) ? originalPost : p
+      ));
     }
   };
 
