@@ -8,7 +8,8 @@ export const usePosts = () => {
     error, 
     addPost, 
     likePost, 
-    addComment, 
+    addComment,
+    addReply,
     likeComment,
     updatePost,
     deletePost,
@@ -31,6 +32,11 @@ export const usePosts = () => {
     await addComment(postId, user.id, content);
   };
 
+  const handleReply = async (postId, commentId, content) => {
+    if (!user) return;
+    await addReply(postId, commentId, user.id, content);
+  };
+
   const handleLikeComment = async (commentId) => {
     if (!user) return;
     await likeComment(commentId, user.id);
@@ -43,6 +49,7 @@ export const usePosts = () => {
     createPost,
     likePost: handleLike,
     addComment: handleComment,
+    addReply: handleReply,
     likeComment: handleLikeComment,
     updatePost,
     deletePost,

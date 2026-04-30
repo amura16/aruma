@@ -167,3 +167,8 @@ CREATE POLICY "Users can insert their own comments" ON comments FOR INSERT WITH 
 CREATE POLICY "Users can delete their own comments" ON comments FOR DELETE USING (auth.uid() = user_id);
 CREATE POLICY "Users can update their own comments" ON comments FOR UPDATE USING (auth.uid() = user_id);
 
+-- Comment Replies (Politiques ajoutées)
+CREATE POLICY "Comment replies are viewable by everyone" ON comment_replies FOR SELECT USING (true);
+CREATE POLICY "Users can insert their own replies" ON comment_replies FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own replies" ON comment_replies FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Users can update their own replies" ON comment_replies FOR UPDATE USING (auth.uid() = user_id);

@@ -22,7 +22,11 @@ export const PostProvider = ({ children }) => {
           likes (user_id),
           comments (
             *,
-            user:profiles!user_id (id, username, firstname, lastname, avatar_url)
+            user:profiles!user_id (id, username, firstname, lastname, avatar_url),
+            replies:comment_replies (
+              *,
+              user:profiles!user_id (id, username, firstname, lastname, avatar_url)
+            )
           )
         `)
         .order("created_at", { ascending: false });
@@ -237,12 +241,43 @@ export const PostProvider = ({ children }) => {
 
       setPosts(prev => prev.map(post => {
         if (Number(post.id) === Number(postId)) {
-          return { ...post, comments: [...(post.comments || []), data] };
+          return { ...post, comments: [...(post.comments || []), { ...data, replies: [] }] };
         }
         return post;
       }));
     } catch (err) {
       console.error("Erreur commentaire:", err.message);
+    }
+  };
+
+  const addReply = async (postId, commentId, userId, content) => {
+    try {
+      const { data, error } = await supabase
+        .from('comment_replies')
+        .insert([{ comment_id: commentId, user_id: userId, content }])
+        .select(`
+          *,
+          user:profiles!user_id (id, username, firstname, lastname, avatar_url)
+        `)
+        .single();
+
+      if (error) throw error;
+
+      setPosts(prev => prev.map(post => {
+        if (Number(post.id) === Number(postId)) {
+          return {
+            ...post,
+            comments: (post.comments || []).map(c => 
+              Number(c.id) === Number(commentId)
+                ? { ...c, replies: [...(c.replies || []), data] }
+                : c
+            )
+          };
+        }
+        return post;
+      }));
+    } catch (err) {
+      console.error("Erreur ajout réponse:", err.message);
     }
   };
 
@@ -272,7 +307,8 @@ export const PostProvider = ({ children }) => {
       error, 
       addPost, 
       likePost, 
-      addComment, 
+      addComment,
+      addReply,
       likeComment,
       updatePost,
       deletePost,

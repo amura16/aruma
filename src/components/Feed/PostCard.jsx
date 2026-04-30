@@ -26,6 +26,9 @@ const PostCard = ({ id, user: author, content, image, time, likes_count, isLiked
 
   const comments = initialComments || [];
 
+  // Calcul du nombre total : commentaires principaux + réponses
+  const totalCommentsCount = comments.length + comments.reduce((acc, cmt) => acc + (cmt.replies?.length || 0), 0);
+
   // --- LOGIQUE ---
   const handleLike = async () => {
     await likePost(id);
@@ -182,7 +185,7 @@ const PostCard = ({ id, user: author, content, image, time, likes_count, isLiked
           )}
         </div>
         <div className="hover:underline cursor-pointer" onClick={() => setShowComments(!showComments)}>
-          {comments.length} commentaires
+          {totalCommentsCount} {totalCommentsCount > 1 ? 'commentaires' : 'commentaire'}
         </div>
       </div>
 
@@ -224,12 +227,14 @@ const PostCard = ({ id, user: author, content, image, time, likes_count, isLiked
               <Comment
                 key={cmt.id}
                 id={cmt.id}
+                postId={id}
                 user={{
                   name: `${cmt.user?.firstname} ${cmt.user?.lastname}`,
                   avatar: cmt.user?.avatar_url
                 }}
                 text={cmt.content}
                 time={cmt.created_at}
+                replies={cmt.replies}
               />
             ))}
           </div>

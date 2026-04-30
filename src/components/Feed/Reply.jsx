@@ -16,13 +16,13 @@ const Reply = ({ user, text, time, onReply }) => {
   return (
     <div className="flex gap-2 mt-2 ml-10 group">
       {/* Avatar avec redirection */}
-      <div 
+      <div
         onClick={() => navigate('/profile')}
         className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden flex-shrink-0 cursor-pointer hover:opacity-80 transition"
       >
-        <img 
-          src={user?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${user?.name}`} 
-          alt="avatar" 
+        <img
+          src={user?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${user?.name}`}
+          alt="avatar"
           className="w-full h-full object-cover"
         />
       </div>
@@ -30,7 +30,7 @@ const Reply = ({ user, text, time, onReply }) => {
       <div className="flex flex-col max-w-[90%]">
         {/* Bulle de la réponse */}
         <div className="bg-gray-100 px-3 py-1.5 rounded-2xl relative">
-          <h5 
+          <h5
             onClick={() => navigate('/profile')}
             className="text-[12px] font-bold hover:underline cursor-pointer text-gray-900"
           >
@@ -39,28 +39,27 @@ const Reply = ({ user, text, time, onReply }) => {
           <p className="text-[13px] text-gray-900 leading-tight">
             {text}
           </p>
-          
+
           {/* Badge Like discret */}
           {isLiked && (
             <div className="absolute -right-2 -bottom-1 bg-white shadow-sm border border-gray-50 rounded-full p-0.5">
-               <div className="bg-blue-500 rounded-full p-0.5 text-[8px] text-white">👍</div>
+              <div className="bg-blue-500 rounded-full p-0.5 text-[8px] text-white">👍</div>
             </div>
           )}
         </div>
 
         {/* Actions sous la bulle */}
         <div className="flex gap-3 ml-2 mt-0.5 items-center">
-          <button 
+          <button
             onClick={() => setIsLiked(!isLiked)}
-            className={`text-[11px] font-bold hover:underline transition-colors ${
-              isLiked ? 'text-blue-600' : 'text-gray-500'
-            }`}
+            className={`text-[11px] font-bold hover:underline transition-colors ${isLiked ? 'text-blue-600' : 'text-gray-500'
+              }`}
           >
             {isLiked ? "Aimé" : "J'aime"}
           </button>
 
           {/* Nouvelle Action Répondre */}
-          <button 
+          <button
             onClick={handleReplyAction}
             className="text-[11px] font-bold text-gray-500 hover:underline"
           >
