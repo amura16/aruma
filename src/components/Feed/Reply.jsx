@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { formatTime } from '../../utils/formatTime';
 
 const Reply = ({ user, text, time, onReply }) => {
   const navigate = useNavigate();
@@ -69,7 +70,7 @@ const Reply = ({ user, text, time, onReply }) => {
           </button>
 
           <span className="text-[11px] text-gray-400 font-normal">
-            {time}
+            {formatTime(time)}
           </span>
         </div>
       </div>

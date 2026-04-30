@@ -4,6 +4,7 @@ import { Heart, MessageCircle, Share2, MoreHorizontal, Send, Edit, Trash2, Bookm
 import Comment from './Comment';
 import { usePosts } from '../../hooks/usePosts';
 import { useAuth } from '../../context/AuthContext';
+import { formatTime } from '../../utils/formatTime';
 
 const PostCard = ({ id, user: author, content, image, time, likes_count, isLikedByMe, comments: initialComments }) => {
   const navigate = useNavigate();
@@ -81,7 +82,7 @@ const PostCard = ({ id, user: author, content, image, time, likes_count, isLiked
             <h4 className="font-bold text-[14px] group-hover:underline text-gray-900">
               {authorName}
             </h4>
-            <p className="text-[12px] text-gray-500 font-medium">{time || "À l'instant"}</p>
+            <p className="text-[12px] text-gray-500 font-medium">{formatTime(time)}</p>
           </div>
         </div>
 

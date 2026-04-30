@@ -4,6 +4,7 @@ import { Send } from 'lucide-react';
 import Reply from './Reply';
 import { usePosts } from '../../hooks/usePosts';
 import { useAuth } from '../../context/AuthContext';
+import { formatTime } from '../../utils/formatTime';
 
 const Comment = ({ id, postId, user, text, time, replies = [] }) => {
   const navigate = useNavigate();
@@ -86,7 +87,9 @@ const Comment = ({ id, postId, user, text, time, replies = [] }) => {
             >
               Répondre
             </button>
-            <span className="text-[12px] text-gray-400 font-normal">{time}</span>
+            <span className="text-[11px] text-gray-400 font-normal">
+              {formatTime(time)}
+            </span>
           </div>
         </div>
       </div>
