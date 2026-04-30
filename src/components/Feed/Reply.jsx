@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 const Reply = ({ user, text, time, onReply }) => {
   const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
   const [isLiked, setIsLiked] = useState(false);
 
   // Fonction pour déclencher la réponse
@@ -17,7 +19,7 @@ const Reply = ({ user, text, time, onReply }) => {
     <div className="flex gap-2 mt-2 ml-10 group">
       {/* Avatar avec redirection */}
       <div
-        onClick={() => navigate('/profile')}
+        onClick={() => navigate(currentUser?.id === user?.id ? '/profile' : `/user/${user?.id}`)}
         className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden flex-shrink-0 cursor-pointer hover:opacity-80 transition"
       >
         <img
@@ -31,7 +33,7 @@ const Reply = ({ user, text, time, onReply }) => {
         {/* Bulle de la réponse */}
         <div className="bg-gray-100 px-3 py-1.5 rounded-2xl relative">
           <h5
-            onClick={() => navigate('/profile')}
+            onClick={() => navigate(currentUser?.id === user?.id ? '/profile' : `/user/${user?.id}`)}
             className="text-[12px] font-bold hover:underline cursor-pointer text-gray-900"
           >
             {user?.name}

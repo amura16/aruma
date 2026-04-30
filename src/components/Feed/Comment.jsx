@@ -42,7 +42,7 @@ const Comment = ({ id, postId, user, text, time, replies = [] }) => {
       {/* --- BLOC COMMENTAIRE PARENT --- */}
       <div className="flex gap-2">
         <div
-          onClick={() => navigate('/profile')}
+          onClick={() => navigate(currentUser?.id === user?.id ? '/profile' : `/user/${user?.id}`)}
           className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden flex-shrink-0 cursor-pointer hover:opacity-90 transition"
         >
           <img
@@ -55,7 +55,7 @@ const Comment = ({ id, postId, user, text, time, replies = [] }) => {
         <div className="flex flex-col max-w-[85%]">
           <div className="bg-gray-100 px-3 py-2 rounded-2xl relative">
             <h5
-              onClick={() => navigate('/profile')}
+              onClick={() => navigate(currentUser?.id === user?.id ? '/profile' : `/user/${user?.id}`)}
               className="text-[13px] font-bold hover:underline cursor-pointer text-gray-900"
             >
               {user?.name || "Utilisateur"}
@@ -97,6 +97,7 @@ const Comment = ({ id, postId, user, text, time, replies = [] }) => {
           <Reply
             key={reply.id}
             user={{
+              id: reply.user?.id || reply.user_id,
               name: `${reply.user?.firstname} ${reply.user?.lastname}`,
               avatar: reply.user?.avatar_url
             }}

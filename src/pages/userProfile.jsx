@@ -1,49 +1,104 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import supabase from '../services/supabaseClient';
+import { usePosts } from '../hooks/usePosts';
 import ProfileHeader from '../components/Profile/ProfileHeader';
 import ProfileSidebar from '../components/Profile/ProfileSidebar';
 import PostCard from '../components/Feed/PostCard';
+import NavBar from '../components/Layout/Navbar'; // Si besoin
 
 const UserProfile = () => {
-  // 1. Simuler les données récupérées depuis une API pour un autre utilisateur
-  const otherUser = {
-    firstname: "Sonia",
-    lastname: "Rakoto",
-    avatar_url: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sonia",
-    cover_url: "https://images.unsplash.com/photo-1494790108377-be9c29b29330",
-    bio: "Exploratrice urbaine et passionnée de design. ✨"
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { posts } = usePosts();
+  
+  const [profileUser, setProfileUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (error) throw error;
+        setProfileUser(data);
+      } catch (err) {
+        console.error("Erreur lors de la récupération du profil :", err.message);
+        navigate('/404'); // Ou gérer l'erreur autrement
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchUserProfile();
+    }
+  }, [id, navigate]);
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center bg-[#F0F2F5]">Chargement du profil...</div>;
+  }
+
+  if (!profileUser) {
+    return <div className="min-h-screen flex items-center justify-center bg-[#F0F2F5]">Utilisateur introuvable</div>;
+  }
+
+  // Filtrer les posts pour n'afficher que ceux de cet utilisateur
+  const userPosts = posts.filter(post => post.author?.id === id || post.user_id === id);
+
+  // Mettre en forme les données pour ProfileHeader et ProfileSidebar
+  const displayUser = {
+    firstname: profileUser.firstname,
+    lastname: profileUser.lastname,
+    avatar_url: profileUser.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${profileUser.firstname}`,
+    cover_url: profileUser.cover_url || "https://images.unsplash.com/photo-1494790108377-be9c29b29330",
+    bio: profileUser.bio || "Cet utilisateur n'a pas encore de bio."
   };
-
-  // Définir les médias de cet utilisateur
-  const userPhotos = [
-    { url: "https://picsum.photos/400/400?random=10" },
-    { url: "https://picsum.photos/400/400?random=11" },
-    { url: "https://picsum.photos/400/400?random=12" },
-  ];
-
-  const userVideos = []; // Exemple d'utilisateur sans vidéos
 
   return (
     <div className="min-h-screen bg-[#F0F2F5]">
-      {/* isOwner={false} : Affiche "Ajouter" et "Message" au lieu de "Modifier" */}
-      <ProfileHeader user={otherUser} isOwner={false} />
+      {/* On peut ajouter la NavBar ici si tu veux qu'elle apparaisse sur les profils */}
+      
+      <ProfileHeader user={displayUser} isOwner={false} />
 
-      <main className="max-w-[1100px] mx-auto grid grid-cols-1 md:grid-cols-12 gap-4 mt-4 px-4">
+      <main className="max-w-[1100px] mx-auto grid grid-cols-1 md:grid-cols-12 gap-4 mt-4 px-4 pb-10">
         
-        {/* La sidebar n'affichera pas le bouton "Ajouter une bio" */}
         <ProfileSidebar 
-          bio={otherUser.bio}
-          photos={userPhotos} 
-          videos={userVideos}
+          bio={displayUser.bio}
+          photos={[]} // À connecter à la table files si besoin plus tard
+          videos={[]}
           isOwner={false}
         />
 
         <section className="md:col-span-7 space-y-4">
-          {/* Flux de publications de l'autre utilisateur */}
-          <PostCard 
-            user={otherUser} 
-            content="Superbe journée au parc aujourd'hui !" 
-            time="Il y a 2 heures" 
-          />
+          {userPosts.length === 0 ? (
+            <div className="bg-white p-6 rounded-xl text-center text-gray-500 border border-gray-200">
+              Cet utilisateur n'a pas encore publié de post.
+            </div>
+          ) : (
+            userPosts.map(post => (
+              <PostCard 
+                key={post.id}
+                id={post.id}
+                user={{
+                  id: profileUser.id,
+                  name: `${profileUser.firstname} ${profileUser.lastname}`,
+                  avatar: profileUser.avatar_url
+                }}
+                content={post.content}
+                image={post.image_url}
+                time={post.created_at}
+                likes_count={post.likes_count}
+                isLikedByMe={post.isLikedByMe}
+                comments={post.comments}
+              />
+            ))
+          )}
         </section>
       </main>
     </div>

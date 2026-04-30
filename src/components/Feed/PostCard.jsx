@@ -68,7 +68,7 @@ const PostCard = ({ id, user: author, content, image, time, likes_count, isLiked
       <div className="p-4 flex items-center justify-between">
         <div
           className="flex items-center gap-3 cursor-pointer group"
-          onClick={() => navigate('/profile')}
+          onClick={() => navigate(isAuthor ? '/profile' : `/user/${authorId}`)}
         >
           <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden ring-1 ring-gray-100">
             <img
@@ -229,6 +229,7 @@ const PostCard = ({ id, user: author, content, image, time, likes_count, isLiked
                 id={cmt.id}
                 postId={id}
                 user={{
+                  id: cmt.user?.id || cmt.user_id,
                   name: `${cmt.user?.firstname} ${cmt.user?.lastname}`,
                   avatar: cmt.user?.avatar_url
                 }}
