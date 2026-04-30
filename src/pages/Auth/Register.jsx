@@ -9,7 +9,8 @@ const Register = () => {
     password: '',
     username: '',
     firstname: '',
-    lastname: ''
+    lastname: '',
+    gender: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,7 +30,8 @@ const Register = () => {
       await signUp(formData.email, formData.password, {
         username: formData.username,
         firstname: formData.firstname,
-        lastname: formData.lastname
+        lastname: formData.lastname,
+        gender: formData.gender
       });
       // Supabase envoie souvent un mail de confirmation par défaut
       alert("Compte créé ! Vérifiez vos emails si nécessaire ou connectez-vous.");
@@ -130,6 +132,22 @@ const Register = () => {
                 onChange={handleChange}
               />
             </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-bold text-gray-700 ml-1">Genre</label>
+            <select
+              name="gender"
+              required
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-gray-700 font-medium"
+              value={formData.gender}
+              onChange={handleChange}
+            >
+              <option value="" disabled>Sélectionner...</option>
+              <option value="male">Homme</option>
+              <option value="female">Femme</option>
+              <option value="other">Autre</option>
+            </select>
           </div>
 
           <button

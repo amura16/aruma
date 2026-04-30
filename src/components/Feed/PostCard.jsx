@@ -273,3 +273,5 @@ const PostCard = ({ id, user: author, content, image, time, likes_count: initial
 };
 
 export default PostCard;
+
+

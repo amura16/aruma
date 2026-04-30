@@ -106,7 +106,7 @@ export const PostProvider = ({ children }) => {
       if (insertError) {
         // Code 23505 ou 409 = Le like existe déjà -> ACTION : UNLIKE
         if (insertError.code === '23505' || insertError.status === 409) {
-          
+
           const { error: unlikeError } = await supabase
             .from('likes')
             .delete()
@@ -124,7 +124,7 @@ export const PostProvider = ({ children }) => {
               ? { ...p, likes_count: Math.max(0, (p.likes_count || 0) - 1), isLikedByMe: false } 
               : p
           ));
-          
+
         } else {
           throw insertError;
         }
@@ -181,7 +181,7 @@ export const PostProvider = ({ children }) => {
   const toggleSavePost = async (postId) => {
     try {
       if (!user) return;
-      
+
       const { data: existing } = await supabase
         .from('saved_posts')
         .select('id')
@@ -261,3 +261,5 @@ export const PostProvider = ({ children }) => {
 };
 
 export const usePostsContext = () => useContext(PostContext);
+
+

@@ -36,10 +36,32 @@ export const AuthProvider = ({ children }) => {
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
-      setUser(data);
+
+      if (data) {
+        setUser(data);
+      } else {
+        // Le profil n'existe pas encore — le créer à partir des métadonnées auth
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        const meta = authUser?.user_metadata || {};
+        const newProfile = {
+          id: userId,
+          username: meta.username || '',
+          firstname: meta.firstname || '',
+          lastname: meta.lastname || '',
+          gender: meta.gender || '',
+        };
+        const { data: created, error: insertErr } = await supabase
+          .from('profiles')
+          .insert(newProfile)
+          .select()
+          .single();
+
+        if (insertErr) throw insertErr;
+        setUser(created);
+      }
     } catch (err) {
       console.error("Erreur profile:", err.message);
     } finally {

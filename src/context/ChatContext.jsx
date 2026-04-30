@@ -24,8 +24,6 @@ export const ChatProvider = ({ children }) => {
             conversation_id,
             conversations!conversation_id (
               id,
-              name,
-              type,
               last_message_at,
               participants:conversation_participants (
                 profiles (id, username, firstname, lastname, avatar_url)
@@ -37,14 +35,14 @@ export const ChatProvider = ({ children }) => {
         if (error) throw error;
         
         // Formater les données pour avoir une liste plate de conversations
-        const formatted = data.map(item => {
+        const formatted = (data || []).map(item => {
           const conv = item.conversations;
-          // Trouver l'autre participant (si c'est un chat direct)
-          const otherParticipant = conv.participants.find(p => p.profiles.id !== user.id)?.profiles;
+          // Trouver l'autre participant (chat direct)
+          const otherParticipant = conv.participants?.find(p => p.profiles?.id !== user.id)?.profiles;
           return {
             ...conv,
             otherParticipant,
-            display_name: conv.name || `${otherParticipant?.firstname} ${otherParticipant?.lastname}`,
+            display_name: otherParticipant ? `${otherParticipant.firstname || ''} ${otherParticipant.lastname || ''}`.trim() : 'Conversation',
             display_avatar: otherParticipant?.avatar_url
           };
         });

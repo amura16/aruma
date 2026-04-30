@@ -21,17 +21,17 @@ import NotFound from './pages/NotFound';
 // Composant pour protéger les routes
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  
+
   if (loading) {
     return <div className="h-screen flex items-center justify-center bg-[#F0F2F5]">
       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
     </div>;
   }
-  
+
   if (!user) {
     return <Navigate to="/login" replace />;
   }
-  
+
   return children;
 };
 
@@ -55,10 +55,10 @@ function App() {
           <Route path="/account-settings" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
           <Route path="/saved" element={<ProtectedRoute><Saved /></ProtectedRoute>} />
           <Route path="/live" element={<ProtectedRoute><LiveStream /></ProtectedRoute>} />
-          <Route path="/user/" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />  
-          
+          <Route path="/user/:id" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
+
           {/* 404 */}
-          <Route path="/404" element={<NotFound/>} />
+          <Route path="/404" element={<NotFound />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
