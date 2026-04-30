@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../services/supabaseClient';
+import LiveChat from '../Live/LiveChat';
 
 const LiveVideoModal = ({ closeModal }) => {
   const jitsiContainerRef = useRef(null);
@@ -9,18 +10,16 @@ const LiveVideoModal = ({ closeModal }) => {
   const [isReady, setIsReady] = useState(false);
   const { user } = useAuth();
   const [jitsiApi, setJitsiApi] = useState(null);
-  const roomName = `ArumaLive-${user?.id?.substring(0, 8) || Math.random().toString(36).substring(7)}`;
+  const roomName = useRef(`ArumaLive-${user?.id?.substring(0, 8) || Math.random().toString(36).substring(7)}`).current;
 
-  // 1. Charger le script
+  // 1. Charger le script public
   useEffect(() => {
-    const scriptId = 'jitsi-external-api';
     if (window.JitsiMeetExternalAPI) {
       setScriptLoaded(true);
       return;
     }
 
     const script = document.createElement('script');
-    script.id = scriptId;
     script.src = 'https://meet.jit.si/external_api.js';
     script.async = true;
     script.onload = () => {
@@ -29,10 +28,10 @@ const LiveVideoModal = ({ closeModal }) => {
     document.body.appendChild(script);
   }, []);
 
-  // 2. Initialiser Jitsi
+  // 2. Initialiser Jitsi sur meet.jit.si
   useEffect(() => {
     if (scriptLoaded && jitsiContainerRef.current && !jitsiApi && window.JitsiMeetExternalAPI) {
-      
+
       const initializeJitsi = async () => {
         try {
           if (user) {
@@ -48,12 +47,13 @@ const LiveVideoModal = ({ closeModal }) => {
             height: '100%',
             parentNode: jitsiContainerRef.current,
             userInfo: {
-              displayName: user ? `${user.firstname} ${user.lastname}` : 'Utilisateur Aruma'
+              displayName: user ? `${user.firstname} ${user.lastname}` : 'Diffuseur Aruma'
             },
             configOverwrite: {
               startWithAudioMuted: false,
-              disableDeepLinking: true,
+              startWithVideoMuted: false,
               prejoinPageEnabled: false,
+              disableDeepLinking: true,
             },
             interfaceConfigOverwrite: {
               TOOLBAR_BUTTONS: [
@@ -66,20 +66,24 @@ const LiveVideoModal = ({ closeModal }) => {
 
           const api = new window.JitsiMeetExternalAPI('meet.jit.si', options);
           setJitsiApi(api);
-          
-          // On affiche l'interface dès que l'API est initialisée
           setIsReady(true);
 
           api.addEventListener('videoConferenceLeft', () => {
             handleEndLive();
           });
         } catch (e) {
-          console.error("Erreur Jitsi:", e);
+          console.error("Erreur Jitsi Studio:", e);
         }
       };
 
       initializeJitsi();
     }
+
+    return () => {
+      if (jitsiApi) {
+        jitsiApi.dispose();
+      }
+    };
   }, [scriptLoaded, user]);
 
   const handleEndLive = async () => {
@@ -94,35 +98,39 @@ const LiveVideoModal = ({ closeModal }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-black">
-      <div className="flex items-center justify-between p-4 bg-[#1c1e21] border-b border-white/10 z-10">
+    <div className="fixed inset-0 z-[100] bg-black overflow-hidden flex flex-col" style={{ height: '100dvh' }}>
+      {/* Header - Hauteur fixe 60px */}
+      <div className="h-[60px] flex items-center justify-between px-4 bg-[#1c1e21] border-b border-white/10 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse"></div>
-          <h2 className="text-white font-bold text-lg">ArumA Live Studio</h2>
+          <div className="w-2.5 h-2.5 bg-red-600 rounded-full animate-pulse"></div>
+          <h2 className="text-white font-bold text-base">ArumA Studio</h2>
         </div>
-        <button onClick={handleEndLive} className="p-2 hover:bg-white/10 rounded-full text-white transition">
-          <X size={24} />
+        <button 
+          onClick={handleEndLive} 
+          className="h-9 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-sm transition flex items-center gap-2"
+        >
+          <X size={18} /> Arrêter
         </button>
       </div>
 
-      <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
-        {!isReady && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-white z-50 bg-black">
-            <Loader2 className="animate-spin text-blue-500" size={48} />
-            <p className="text-lg font-medium">Connexion au réseau ArumA...</p>
-          </div>
-        )}
-        <div 
-          ref={jitsiContainerRef} 
-          className="w-full h-full"
-          style={{ minHeight: '400px' }}
-        />
-      </div>
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-black">
+        <div className="h-[60%] lg:h-full lg:flex-1 relative overflow-hidden bg-black flex flex-col">
+          {!isReady && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-white z-50 bg-black">
+              <Loader2 className="animate-spin text-blue-500" size={32} />
+              <p className="text-xs">Initialisation du studio...</p>
+            </div>
+          )}
+          <div 
+            ref={jitsiContainerRef} 
+            className="w-full h-full relative"
+            style={{ position: 'relative', height: '100%', width: '100%' }}
+          />
+        </div>
 
-      <div className="p-3 bg-[#1c1e21] text-center border-t border-white/5">
-        <p className="text-gray-400 text-[10px] uppercase tracking-widest font-bold">
-          Flux chiffré • ArumA Realtime Studio
-        </p>
+        <div className="h-[40%] lg:h-full lg:w-[350px] bg-white border-t lg:border-t-0 lg:border-l border-white/10 flex flex-col overflow-hidden">
+          <LiveChat roomName={roomName} />
+        </div>
       </div>
     </div>
   );

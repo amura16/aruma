@@ -81,9 +81,14 @@ export const AuthProvider = ({ children }) => {
         .eq('id', user.id);
       
       if (error) throw error;
-      setUser(prev => ({ ...prev, ...updates }));
+      
+      // Forcer un rafraîchissement complet depuis la base de données
+      await fetchProfile(user.id);
+      
+      return { success: true };
     } catch (err) {
       console.error("Erreur update profile:", err.message);
+      return { success: false, error: err.message };
     }
   };
 

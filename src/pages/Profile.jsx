@@ -12,16 +12,13 @@ const Profile = () => {
   // Filter posts to show only user's posts
   const userPosts = posts.filter(post => post.author?.id === currentUser.id);
 
-  // Ce sont ces variables qui causaient l'erreur "not defined"
-  const userPhotos = [
-    { url: "https://picsum.photos/400/400?random=1" },
-    { url: "https://picsum.photos/400/400?random=2" },
-    { url: "https://picsum.photos/400/400?random=3" },
-  ];
+  // Extraire dynamiquement les photos à partir des posts de l'utilisateur
+  const userPhotos = userPosts
+    .filter(post => post.image_url)
+    .map(post => ({ url: post.image_url }));
 
-  const userVideos = [
-    { url: "https://www.w3schools.com/html/mov_bbb.mp4" },
-  ];
+  // Pour l'instant on garde une liste vide pour les vidéos si non supportées dans les posts
+  const userVideos = [];
 
   return (
     <div className="min-h-screen bg-[#F0F2F5]">
@@ -29,9 +26,8 @@ const Profile = () => {
 
       <main className="max-w-[1100px] mx-auto grid grid-cols-1 md:grid-cols-12 gap-4 mt-4 px-4">
         
-        {/* 2. Utilisation du composant avec les variables définies au-dessus */}
         <ProfileSidebar 
-          bio="Développeur passionné par ArumA 🚀"
+          user={currentUser}
           photos={userPhotos} 
           videos={userVideos}
           isOwner={true}

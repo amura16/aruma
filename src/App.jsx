@@ -10,6 +10,7 @@ import VideoFeed from './pages/VideoFeed';
 import Notifications from './pages/Notifications';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
+import AccountSettings from './pages/AccountSettings';
 import Saved from './pages/Saved';
 import LiveStream from './pages/LiveStream';
 import UserProfile from './pages/userProfile';
@@ -51,6 +52,7 @@ function App() {
           <Route path="/notification" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/setting" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+          <Route path="/account-settings" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
           <Route path="/saved" element={<ProtectedRoute><Saved /></ProtectedRoute>} />
           <Route path="/live" element={<ProtectedRoute><LiveStream /></ProtectedRoute>} />
           <Route path="/user/" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />  
