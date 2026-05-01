@@ -9,7 +9,7 @@ export const PostProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
-  // --- RÉCUPÉRATION DES DONNÉES ---
+  // --- 1. RÉCUPÉRATION DES DONNÉES (FETCH) ---
   const fetchPosts = async () => {
     try {
       setLoading(true);
@@ -34,7 +34,6 @@ export const PostProvider = ({ children }) => {
 
       const formattedPosts = data.map(post => {
         const parentComments = post.comments || [];
-
         const totalCommentsCount = parentComments.reduce((acc, comment) => {
           const repliesCount = comment.replies?.length || 0;
           return acc + 1 + repliesCount;
@@ -57,12 +56,10 @@ export const PostProvider = ({ children }) => {
     }
   };
 
+  // --- 2. GESTION DU TEMPS RÉEL (REALTIME) ---
   useEffect(() => {
     fetchPosts();
-  }, [user?.id]);
 
-  // --- REALTIME ---
-  useEffect(() => {
     const channel = supabase
       .channel('db-global-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => fetchPosts())
@@ -76,7 +73,7 @@ export const PostProvider = ({ children }) => {
     };
   }, [user?.id]);
 
-  // --- ACTIONS : POSTS (Ajoutées ici pour corriger ton erreur) ---
+  // --- 3. ACTIONS SUR LES POSTS ---
   const createPost = async (content, mediaUrl = null) => {
     if (!user || (!content.trim() && !mediaUrl)) return;
     try {
@@ -88,7 +85,6 @@ export const PostProvider = ({ children }) => {
           image_url: mediaUrl,
         });
       if (error) throw error;
-      // fetchPosts() sera appelé automatiquement via le Realtime
     } catch (error) {
       console.error("Erreur createPost:", error.message);
       throw error;
@@ -119,7 +115,7 @@ export const PostProvider = ({ children }) => {
     }
   };
 
-  // --- ACTIONS : LIKES ---
+  // --- 4. ACTIONS SUR LES LIKES ---
   const toggleLike = async (postId, isLiked) => {
     if (!user) return;
     try {
@@ -135,7 +131,7 @@ export const PostProvider = ({ children }) => {
     }
   };
 
-  // --- ACTIONS : COMMENTAIRES ---
+  // --- 5. ACTIONS SUR LES COMMENTAIRES ---
   const addComment = async (postId, content) => {
     if (!user || !content.trim()) return;
     await supabase.from('comments').insert({ post_id: postId, user_id: user.id, content });
@@ -149,7 +145,7 @@ export const PostProvider = ({ children }) => {
     await supabase.from('comments').delete().eq('id', commentId);
   };
 
-  // --- ACTIONS : RÉPONSES ---
+  // --- 6. ACTIONS SUR LES RÉPONSES (REPLIES) ---
   const addReply = async (commentId, content) => {
     if (!user || !content.trim()) return;
     await supabase.from('comment_replies').insert({ comment_id: commentId, user_id: user.id, content });
@@ -163,14 +159,15 @@ export const PostProvider = ({ children }) => {
     await supabase.from('comment_replies').delete().eq('id', replyId);
   };
 
+  // --- LE RETURN DU PROVIDER (C'est ici qu'il doit se trouver) ---
   return (
     <PostContext.Provider value={{
       posts,
       loading,
       fetchPosts,
-      createPost, // Exporté ici
-      updatePost, // Exporté ici
-      deletePost, // Exporté ici
+      createPost,
+      updatePost,
+      deletePost,
       toggleLike,
       addComment,
       updateComment,
@@ -184,6 +181,7 @@ export const PostProvider = ({ children }) => {
   );
 };
 
+// Hook personnalisé pour utiliser le contexte
 export const usePostsContext = () => {
   const context = useContext(PostContext);
   if (!context) {
