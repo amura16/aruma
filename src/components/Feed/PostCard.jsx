@@ -141,7 +141,7 @@ const PostCard = ({
       {/* IMAGE */}
       {image_url && !isEditing && (
         <div className="border-y border-gray-100 bg-gray-50 flex justify-center">
-          <img src={image_url} className="w-full h-auto max-h-[500px] object-contain" alt="Post" />
+          <img src={image_url} className="w-full h-auto max-h-[500px] object-contain" alt="" />
         </div>
       )}
 
