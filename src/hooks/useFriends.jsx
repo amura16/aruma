@@ -1,15 +1,19 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import supabase from '../services/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 
 export const useFriends = () => {
   const { user } = useAuth();
   const [friends, setFriends] = useState([]);
-  const [invitations, setInvitations] = useState([]); // Invitations REÇUES (Incoming)
-  const [sentRequests, setSentRequests] = useState([]); // Invitations ENVOYÉES (Outgoing)
+  const [invitations, setInvitations] = useState([]); // Demandes reçues
+  const [sentRequests, setSentRequests] = useState([]); // Demandes envoyées
   const [loading, setLoading] = useState(true);
 
-  // --- 1. RÉCUPÉRER LA LISTE D'AMIS ---
+  // Référence pour garder une trace du canal et éviter les fuites de mémoire
+  const channelRef = useRef(null);
+
+  // --- 1. CHARGEMENT DES DONNÉES ---
+
   const fetchFriends = useCallback(async () => {
     if (!user?.id) return;
     try {
@@ -23,13 +27,11 @@ export const useFriends = () => {
       const friendIds = data.map(f => f.user_id1 === user.id ? f.user_id2 : f.user_id1);
 
       if (friendIds.length > 0) {
-        const { data: profiles, error: profError } = await supabase
+        const { data: profiles } = await supabase
           .from('profiles')
           .select('id, username, firstname, lastname, avatar_url')
           .in('id', friendIds);
-
-        if (profError) throw profError;
-        setFriends(profiles);
+        setFriends(profiles || []);
       } else {
         setFriends([]);
       }
@@ -38,154 +40,118 @@ export const useFriends = () => {
     }
   }, [user?.id]);
 
-  // --- 2. RÉCUPÉRER LES INVITATIONS (REÇUES ET ENVOYÉES) ---
   const fetchInvitations = useCallback(async () => {
     if (!user?.id) return;
     try {
-      // RÉCUPÉRER LES INVITATIONS REÇUES (Pour le bouton "Répondre")
-      const { data: received, error: recError } = await supabase
+      // Invitations Reçues
+      const { data: rec } = await supabase
         .from('invitations')
         .select(`
-          id, sender_id, receiver_id, status,
+          id, sender_id, receiver_id, status, created_at,
           sender:profiles!sender_id (id, username, firstname, lastname, avatar_url)
         `)
         .eq('receiver_id', user.id)
         .eq('status', 'pending');
 
-      if (recError) throw recError;
-
-      // RÉCUPÉRER LES INVITATIONS ENVOYÉES (Pour le bouton "En attente")
-      const { data: sent, error: sentError } = await supabase
+      // Invitations Envoyées
+      const { data: sent } = await supabase
         .from('invitations')
         .select('id, receiver_id, status')
         .eq('sender_id', user.id)
         .eq('status', 'pending');
 
-      if (sentError) throw sentError;
-
-      setInvitations(received.map(inv => ({
+      setInvitations(rec?.map(inv => ({
         id: inv.id,
         sender_id: inv.sender_id,
         name: `${inv.sender.firstname} ${inv.sender.lastname}`,
         avatar: inv.sender.avatar_url,
-      })));
+        created_at: inv.created_at
+      })) || []);
 
-      setSentRequests(sent);
+      setSentRequests(sent || []);
     } catch (err) {
       console.error("Erreur fetchInvitations:", err.message);
+    } finally {
+      setLoading(false);
     }
   }, [user?.id]);
 
-  // --- 3. MÉTHODES D'ACTION ---
+  // --- 2. ACTIONS (PROPS) ---
 
   const sendRequest = async (receiverId) => {
-    // SÉCURITÉ : Vérification de la présence des IDs avant l'insertion
-    if (!user?.id || !receiverId) {
-      console.error("sendRequest annulé : ID manquant", { sender: user?.id, receiver: receiverId });
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('invitations')
-        .insert([{
-          sender_id: user.id,
-          receiver_id: receiverId,
-          status: 'pending'
-        }]);
-      if (error) throw error;
-    } catch (err) {
-      console.error("Erreur sendRequest:", err.message);
-    }
+    if (!user?.id || !receiverId) return;
+    return await supabase.from('invitations').insert([{ sender_id: user.id, receiver_id: receiverId, status: 'pending' }]);
   };
 
   const cancelRequest = async (receiverId) => {
     if (!user?.id || !receiverId) return;
-    try {
-      const { error } = await supabase
-        .from('invitations')
-        .delete()
-        .eq('sender_id', user.id)
-        .eq('receiver_id', receiverId);
-      if (error) throw error;
-    } catch (err) {
-      console.error("Erreur cancelRequest:", err.message);
-    }
+    return await supabase.from('invitations').delete().eq('sender_id', user.id).eq('receiver_id', receiverId);
   };
 
-  const acceptInvitation = async (invitation) => {
-    if (!user?.id || !invitation?.sender_id) return;
+  const acceptInvitation = async (invitationId, senderId) => {
+    if (!user?.id || !senderId) return;
     try {
-      // Contrainte de clé unique SQL user_id1 < user_id2
-      const [u1, u2] = [user.id, invitation.sender_id].sort();
-
-      const { error: friendError } = await supabase
-        .from('friends')
-        .insert([{ user_id1: u1, user_id2: u2 }]);
-
-      if (friendError && friendError.code !== '23505') throw friendError;
-
-      // Supprimer l'invitation
-      await supabase.from('invitations').delete().eq('id', invitation.id);
-    } catch (err) {
-      console.error("Erreur acceptInvitation:", err.message);
-    }
+      const [u1, u2] = [user.id, senderId].sort();
+      await supabase.from('friends').insert([{ user_id1: u1, user_id2: u2 }]);
+      await supabase.from('invitations').delete().eq('id', invitationId);
+    } catch (err) { console.error(err.message); }
   };
 
   const declineInvitation = async (invitationId) => {
     if (!invitationId) return;
-    try {
-      const { error } = await supabase.from('invitations').delete().eq('id', invitationId);
-      if (error) throw error;
-    } catch (err) {
-      console.error("Erreur declineInvitation:", err.message);
-    }
+    return await supabase.from('invitations').delete().eq('id', invitationId);
   };
 
   const removeFriend = async (friendId) => {
     if (!user?.id || !friendId) return;
-    try {
-      const { error } = await supabase
-        .from('friends')
-        .delete()
-        .or(`and(user_id1.eq.${user.id},user_id2.eq.${friendId}),and(user_id1.eq.${friendId},user_id2.eq.${user.id})`);
-
-      if (error) throw error;
-    } catch (err) {
-      console.error("Erreur removeFriend:", err.message);
-    }
+    return await supabase.from('friends').delete()
+      .or(`and(user_id1.eq.${user.id},user_id2.eq.${friendId}),and(user_id1.eq.${friendId},user_id2.eq.${user.id})`);
   };
 
-  // --- 4. TEMPS RÉEL ---
+  // --- 3. SYNCHRONISATION TEMPS RÉEL (CORRECTIF FINAL) ---
+
   useEffect(() => {
     if (!user?.id) return;
 
     fetchFriends();
     fetchInvitations();
 
-    const channel = supabase
-      .channel('social-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'invitations' }, () => fetchInvitations())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'friends' }, () => {
-        fetchFriends();
-        fetchInvitations();
-      })
-      .subscribe();
+    // Génération d'un ID unique pour éviter les conflits de session
+    const uniqueId = Math.random().toString(36).substring(2, 10);
+    const channel = supabase.channel(`sync_${user.id}_${uniqueId}`);
+
+    // CONFIGURATION : .on() impérativement AVANT .subscribe()
+    channel
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'invitations' },
+        () => fetchInvitations()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'friends' },
+        () => {
+          fetchFriends();
+          fetchInvitations();
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          channelRef.current = channel;
+        }
+      });
 
     return () => {
-      supabase.removeChannel(channel);
+      // Nettoyage lors du démontage ou changement d'utilisateur
+      if (channel) {
+        supabase.removeChannel(channel);
+        channelRef.current = null;
+      }
     };
   }, [user?.id, fetchFriends, fetchInvitations]);
 
   return {
-    friends,
-    invitations,
-    sentRequests,
-    loading,
-    sendRequest,
-    cancelRequest,
-    acceptInvitation,
-    declineInvitation,
-    removeFriend
+    friends, invitations, sentRequests, loading,
+    sendRequest, cancelRequest, acceptInvitation, declineInvitation, removeFriend
   };
 };

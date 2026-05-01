@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Camera, Edit2, UserPlus, UserCheck, MessageCircle,
-  Loader2, X, Users, UserMinus, Clock, Check, Trash2
+  Loader2, X, UserMinus, Clock, Check, Trash2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useFriends } from '../../hooks/useFriends';
@@ -12,10 +12,11 @@ const ProfileHeader = ({ user, isOwner = false }) => {
   const navigate = useNavigate();
   const { updateProfile } = useAuth();
 
+  // Utilisation des méthodes centralisées du hook
   const {
     friends,
-    invitations,    // Invitations reçues (pour "Répondre")
-    sentRequests,   // Invitations envoyées (pour "En attente")
+    invitations,    // Invitations reçues (Incoming)
+    sentRequests,   // Invitations envoyées (Outgoing)
     sendRequest,
     cancelRequest,
     acceptInvitation,
@@ -30,7 +31,7 @@ const ProfileHeader = ({ user, isOwner = false }) => {
   const avatarInputRef = useRef(null);
   const coverInputRef = useRef(null);
 
-  // --- ÉTAT DE LA RELATION ---
+  // --- CALCUL DE LA RELATION ---
   const isFriend = friends.some(f => f.id === user?.id);
   const sentRequest = sentRequests.find(r => r.receiver_id === user?.id);
   const incomingRequest = invitations.find(inv => inv.sender_id === user?.id);
@@ -46,20 +47,21 @@ const ProfileHeader = ({ user, isOwner = false }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // --- ACTIONS ---
+  // --- ACTIONS PRINCIPALES ---
   const handlePrimaryAction = async () => {
     if (isOwner) return;
 
-    // Vérification de sécurité pour éviter l'erreur "receiver_id is null"
+    // Sécurité : l'ID doit être présent pour toute action
     if (!user?.id) {
-      console.error("Impossible d'exécuter l'action : l'ID de l'utilisateur est manquant", user);
+      console.error("ID manquant pour l'action");
       return;
     }
 
+    // Si aucune relation : on envoie une demande
     if (!isFriend && !sentRequest && !incomingRequest) {
-      console.log("Envoi d'une invitation à :", user.id);
       await sendRequest(user.id);
     } else {
+      // Sinon, on ouvre le menu d'options (Annuler, Confirmer, Retirer...)
       setShowOptions(!showOptions);
     }
   };
@@ -177,40 +179,43 @@ const ProfileHeader = ({ user, isOwner = false }) => {
                       </span>
                     </button>
 
-                    {/* Menu contextuel pour les réponses ou annulations */}
+                    {/* Menu contextuel pour les actions avancées */}
                     {showOptions && (
                       <div className="absolute top-full mt-2 left-0 w-full min-w-[200px] bg-white shadow-xl border border-gray-100 rounded-lg py-1 z-[60]">
 
+                        {/* Cas : Invitation reçue */}
                         {incomingRequest && (
                           <>
                             <button
-                              onClick={async () => { await acceptInvitation(incomingRequest); setShowOptions(false); }}
-                              className="w-full text-left px-4 py-2 hover:bg-blue-50 text-blue-600 font-bold flex items-center gap-2 transition"
+                              onClick={async () => { await acceptInvitation(incomingRequest.id, user.id); setShowOptions(false); }}
+                              className="w-full text-left px-4 py-2 hover:bg-blue-50 text-blue-600 font-bold flex items-center gap-2"
                             >
                               <Check size={18} /> Confirmer
                             </button>
                             <button
                               onClick={async () => { await declineInvitation(incomingRequest.id); setShowOptions(false); }}
-                              className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 font-bold flex items-center gap-2 transition"
+                              className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 font-bold flex items-center gap-2"
                             >
                               <Trash2 size={18} /> Supprimer
                             </button>
                           </>
                         )}
 
+                        {/* Cas : Déjà amis */}
                         {isFriend && (
                           <button
                             onClick={async () => { await removeFriend(user.id); setShowOptions(false); }}
-                            className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 font-bold flex items-center gap-2 transition"
+                            className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 font-bold flex items-center gap-2"
                           >
                             <UserMinus size={18} /> Retirer des amis
                           </button>
                         )}
 
+                        {/* Cas : Demande envoyée en attente */}
                         {sentRequest && (
                           <button
                             onClick={async () => { await cancelRequest(user.id); setShowOptions(false); }}
-                            className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700 font-bold flex items-center gap-2 transition"
+                            className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700 font-bold flex items-center gap-2"
                           >
                             <X size={18} /> Annuler la demande
                           </button>
