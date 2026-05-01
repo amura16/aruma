@@ -5,36 +5,64 @@ import {
   Loader2, X, UserMinus, Clock, Check, Trash2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useFriends } from '../../hooks/useFriends';
+import { useFriendsContext } from '../../context/FriendsContext';
 import supabase from '../../services/supabaseClient';
 
 const ProfileHeader = ({ user, isOwner = false }) => {
   const navigate = useNavigate();
   const { updateProfile } = useAuth();
 
-  // Utilisation des méthodes centralisées du hook
+  // Extraction des données et actions du contexte global
   const {
-    friends,
-    invitations,    // Invitations reçues (Incoming)
-    sentRequests,   // Invitations envoyées (Outgoing)
+    friends: myFriends,
+    friendCount: myGlobalCount,
+    invitations,
+    sentRequests,
     sendRequest,
     cancelRequest,
     acceptInvitation,
     declineInvitation,
     removeFriend
-  } = useFriends();
+  } = useFriendsContext();
 
   const [uploading, setUploading] = useState({ type: '', status: false });
   const [showOptions, setShowOptions] = useState(false);
+  const [displayFriendCount, setDisplayFriendCount] = useState(0);
 
   const optionsRef = useRef(null);
   const avatarInputRef = useRef(null);
   const coverInputRef = useRef(null);
 
-  // --- CALCUL DE LA RELATION ---
-  const isFriend = friends.some(f => f.id === user?.id);
+  // --- CALCUL DE LA RELATION (Basé sur les données de l'utilisateur connecté) ---
+  const isFriend = myFriends.some(f => f.id === user?.id);
   const sentRequest = sentRequests.find(r => r.receiver_id === user?.id);
   const incomingRequest = invitations.find(inv => inv.sender_id === user?.id);
+
+  // --- GESTION DU COMPTEUR D'AMIS ---
+  useEffect(() => {
+    // Si c'est mon profil, j'utilise le compteur temps réel du contexte
+    if (isOwner) {
+      setDisplayFriendCount(myGlobalCount);
+      return;
+    }
+
+    // Si c'est le profil d'un autre, on compte ses relations en base
+    const fetchTargetFriendCount = async () => {
+      if (!user?.id) return;
+      try {
+        const { count, error } = await supabase
+          .from('friends')
+          .select('*', { count: 'exact', head: true })
+          .or(`user_id1.eq.${user.id},user_id2.eq.${user.id}`);
+
+        if (!error) setDisplayFriendCount(count || 0);
+      } catch (err) {
+        console.error("Erreur comptage amis tiers:", err);
+      }
+    };
+
+    fetchTargetFriendCount();
+  }, [user?.id, isOwner, myGlobalCount, isFriend]);
 
   // Fermer le menu si on clique à l'extérieur
   useEffect(() => {
@@ -47,21 +75,14 @@ const ProfileHeader = ({ user, isOwner = false }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // --- ACTIONS PRINCIPALES ---
+  // --- ACTIONS ---
   const handlePrimaryAction = async () => {
     if (isOwner) return;
+    if (!user?.id) return;
 
-    // Sécurité : l'ID doit être présent pour toute action
-    if (!user?.id) {
-      console.error("ID manquant pour l'action");
-      return;
-    }
-
-    // Si aucune relation : on envoie une demande
     if (!isFriend && !sentRequest && !incomingRequest) {
       await sendRequest(user.id);
     } else {
-      // Sinon, on ouvre le menu d'options (Annuler, Confirmer, Retirer...)
       setShowOptions(!showOptions);
     }
   };
@@ -93,7 +114,7 @@ const ProfileHeader = ({ user, isOwner = false }) => {
     <div className="bg-white shadow-sm border-b">
       <div className="max-w-[1100px] mx-auto">
 
-        {/* --- SECTION COUVERTURE --- */}
+        {/* --- COUVERTURE --- */}
         <div className="relative h-[200px] md:h-[350px] bg-gray-200 rounded-b-xl overflow-hidden">
           <img
             src={user?.cover_url || "https://images.unsplash.com/photo-1557683316-973673baf926"}
@@ -138,13 +159,13 @@ const ProfileHeader = ({ user, isOwner = false }) => {
               <input type="file" ref={avatarInputRef} className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'avatar')} />
             </div>
 
-            {/* Texte */}
+            {/* Texte et Compteur */}
             <div className="flex-1 text-center md:text-left pt-2">
               <h1 className="text-3xl font-bold text-gray-900">
                 {user?.firstname} {user?.lastname}
               </h1>
               <span className="text-gray-600 font-semibold">
-                {friends.length} {friends.length > 1 ? 'amis' : 'ami'}
+                {displayFriendCount} {displayFriendCount > 1 ? 'amis' : 'ami'}
               </span>
             </div>
 
@@ -164,30 +185,21 @@ const ProfileHeader = ({ user, isOwner = false }) => {
                       onClick={handlePrimaryAction}
                       className={`w-full flex items-center justify-center gap-2 px-6 py-2 rounded-lg font-bold transition shadow-sm ${isFriend ? 'bg-gray-200 text-gray-800' :
                           incomingRequest ? 'bg-blue-600 text-white' :
-                            sentRequest ? 'bg-amber-100 text-amber-700' :
-                              'bg-blue-600 text-white'
+                            sentRequest ? 'bg-amber-100 text-amber-700' : 'bg-blue-600 text-white'
                         }`}
                     >
-                      {isFriend ? <UserCheck size={20} /> :
-                        incomingRequest ? <UserPlus size={20} /> :
-                          sentRequest ? <Clock size={20} /> : <UserPlus size={20} />}
-
+                      {isFriend ? <UserCheck size={20} /> : <UserPlus size={20} />}
                       <span>
-                        {isFriend ? 'Ami(e)' :
-                          incomingRequest ? 'Répondre' :
-                            sentRequest ? 'En attente' : 'Ajouter'}
+                        {isFriend ? 'Ami(e)' : incomingRequest ? 'Répondre' : sentRequest ? 'En attente' : 'Ajouter'}
                       </span>
                     </button>
 
-                    {/* Menu contextuel pour les actions avancées */}
                     {showOptions && (
                       <div className="absolute top-full mt-2 left-0 w-full min-w-[200px] bg-white shadow-xl border border-gray-100 rounded-lg py-1 z-[60]">
-
-                        {/* Cas : Invitation reçue */}
                         {incomingRequest && (
                           <>
                             <button
-                              onClick={async () => { await acceptInvitation(incomingRequest.id, user.id); setShowOptions(false); }}
+                              onClick={async () => { await acceptInvitation(incomingRequest.id, user); setShowOptions(false); }}
                               className="w-full text-left px-4 py-2 hover:bg-blue-50 text-blue-600 font-bold flex items-center gap-2"
                             >
                               <Check size={18} /> Confirmer
@@ -196,12 +208,10 @@ const ProfileHeader = ({ user, isOwner = false }) => {
                               onClick={async () => { await declineInvitation(incomingRequest.id); setShowOptions(false); }}
                               className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 font-bold flex items-center gap-2"
                             >
-                              <Trash2 size={18} /> Supprimer
+                              <Trash2 size={18} /> Supprimer la demande
                             </button>
                           </>
                         )}
-
-                        {/* Cas : Déjà amis */}
                         {isFriend && (
                           <button
                             onClick={async () => { await removeFriend(user.id); setShowOptions(false); }}
@@ -210,8 +220,6 @@ const ProfileHeader = ({ user, isOwner = false }) => {
                             <UserMinus size={18} /> Retirer des amis
                           </button>
                         )}
-
-                        {/* Cas : Demande envoyée en attente */}
                         {sentRequest && (
                           <button
                             onClick={async () => { await cancelRequest(user.id); setShowOptions(false); }}

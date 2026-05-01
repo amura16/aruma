@@ -6,22 +6,45 @@ const FriendsContext = createContext();
 
 export const FriendsProvider = ({ children }) => {
   const { user } = useAuth();
+
+  // États des listes
   const [friends, setFriends] = useState([]);
   const [invitations, setInvitations] = useState([]);
   const [sentRequests, setSentRequests] = useState([]);
+
+  // État des compteurs et chargement
+  const [friendCount, setFriendCount] = useState(0);
   const [loading, setLoading] = useState(true);
+
   const channelRef = useRef(null);
 
-  // --- 1. RÉCUPÉRATION DES DONNÉES ---
+  // --- 1. RÉCUPÉRATION DU COMPTE TOTAL (Optimisé) ---
+  const fetchFriendCount = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const { count, error } = await supabase
+        .from('friends')
+        .select('*', { count: 'exact', head: true })
+        .or(`user_id1.eq.${user.id},user_id2.eq.${user.id}`);
+
+      if (error) throw error;
+      setFriendCount(count || 0);
+    } catch (err) {
+      console.error("Erreur fetchFriendCount:", err.message);
+    }
+  }, [user?.id]);
+
+  // --- 2. RÉCUPÉRATION DES DONNÉES DÉTAILLÉES ---
   const fetchFriends = useCallback(async () => {
     if (!user?.id) return;
     try {
       const { data, error } = await supabase
         .from('friends')
-        .select('user_id1, user_id2')
+        .select('user_id1, user_id2, created_at')
         .or(`user_id1.eq.${user.id},user_id2.eq.${user.id}`);
 
       if (error) throw error;
+
       const friendIds = data.map(f => f.user_id1 === user.id ? f.user_id2 : f.user_id1);
 
       if (friendIds.length > 0) {
@@ -29,7 +52,14 @@ export const FriendsProvider = ({ children }) => {
           .from('profiles')
           .select('id, username, firstname, lastname, avatar_url')
           .in('id', friendIds);
-        setFriends(profiles || []);
+
+        // On fusionne la date d'amitié avec le profil pour l'affichage
+        const formattedFriends = profiles.map(profile => {
+          const relation = data.find(r => r.user_id1 === profile.id || r.user_id2 === profile.id);
+          return { ...profile, created_at: relation?.created_at };
+        });
+
+        setFriends(formattedFriends || []);
       } else {
         setFriends([]);
       }
@@ -41,12 +71,14 @@ export const FriendsProvider = ({ children }) => {
   const fetchInvitations = useCallback(async () => {
     if (!user?.id) return;
     try {
+      // Invitations Reçues
       const { data: rec } = await supabase
         .from('invitations')
         .select('id, sender_id, receiver_id, status, created_at, sender:profiles!sender_id(id, username, firstname, lastname, avatar_url)')
         .eq('receiver_id', user.id)
         .eq('status', 'pending');
 
+      // Invitations Envoyées
       const { data: sent } = await supabase
         .from('invitations')
         .select('id, receiver_id, status')
@@ -58,7 +90,7 @@ export const FriendsProvider = ({ children }) => {
         sender_id: inv.sender_id,
         name: `${inv.sender.firstname} ${inv.sender.lastname}`,
         avatar: inv.sender.avatar_url,
-        profile: inv.sender, // Objet complet pour l'ajout immédiat à la liste d'amis
+        profile: inv.sender,
         created_at: inv.created_at
       })) || []);
 
@@ -70,22 +102,21 @@ export const FriendsProvider = ({ children }) => {
     }
   }, [user?.id]);
 
-  // --- 2. ACTIONS AVEC MISE À JOUR OPTIMISTE (Realtime UI) ---
+  // --- 3. ACTIONS SOCIALES ---
   const acceptInvitation = async (invitationId, senderProfile) => {
     if (!user?.id) return;
     try {
-      // Étape 1 : Mise à jour immédiate de l'interface
+      // Mise à jour optimiste
       setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
-      setFriends(prev => [...prev, senderProfile]);
+      setFriends(prev => [...prev, { ...senderProfile, created_at: new Date().toISOString() }]);
+      setFriendCount(prev => prev + 1);
 
-      // Étape 2 : Persistance en base de données
       const [u1, u2] = [user.id, senderProfile.id].sort();
       await supabase.from('friends').insert([{ user_id1: u1, user_id2: u2 }]);
       await supabase.from('invitations').delete().eq('id', invitationId);
     } catch (err) {
-      console.error("Échec de l'acceptation:", err.message);
-      // Rollback en cas d'erreur
       fetchFriends();
+      fetchFriendCount();
       fetchInvitations();
     }
   };
@@ -97,6 +128,7 @@ export const FriendsProvider = ({ children }) => {
 
   const removeFriend = async (friendId) => {
     setFriends(prev => prev.filter(f => f.id !== friendId));
+    setFriendCount(prev => Math.max(0, prev - 1));
     await supabase.from('friends').delete()
       .or(`and(user_id1.eq.${user.id},user_id2.eq.${friendId}),and(user_id1.eq.${friendId},user_id2.eq.${user.id})`);
   };
@@ -110,39 +142,42 @@ export const FriendsProvider = ({ children }) => {
     await supabase.from('invitations').delete().eq('sender_id', user.id).eq('receiver_id', receiverId);
   };
 
-  // --- 3. GESTION DU REALTIME ---
+  // --- 4. REALTIME & INITIALISATION ---
   useEffect(() => {
     if (!user?.id) return;
 
+    // Chargement initial
     fetchFriends();
     fetchInvitations();
+    fetchFriendCount();
 
     const uniqueId = Math.random().toString(36).substring(2, 10);
     const channel = supabase.channel(`realtime_social_${user.id}_${uniqueId}`);
 
     channel
       .on('postgres_changes', { event: '*', schema: 'public', table: 'invitations' }, () => fetchInvitations())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'friends' }, () => fetchFriends())
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') channelRef.current = channel;
-      });
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'friends' }, () => {
+        fetchFriends();
+        fetchFriendCount();
+      })
+      .subscribe();
 
     return () => {
-      if (channel) supabase.removeChannel(channel);
+      supabase.removeChannel(channel);
     };
-  }, [user?.id, fetchFriends, fetchInvitations]);
+  }, [user?.id, fetchFriends, fetchInvitations, fetchFriendCount]);
 
   return (
     <FriendsContext.Provider value={{
-      friends, invitations, sentRequests, loading,
-      sendRequest, cancelRequest, acceptInvitation, declineInvitation, removeFriend
+      friends, friendCount, invitations, sentRequests, loading,
+      sendRequest, cancelRequest, acceptInvitation, declineInvitation, removeFriend,
+      refreshFriendCount: fetchFriendCount // Permet de forcer un refresh si besoin
     }}>
       {children}
     </FriendsContext.Provider>
   );
 };
 
-// EXPORT RENOMMÉ POUR ÉVITER TOUTE CONFUSION
 export const useFriendsContext = () => {
   const context = useContext(FriendsContext);
   if (!context) {
