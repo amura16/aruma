@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import supabase from '../services/supabaseClient';
-import { usePosts } from '../hooks/usePosts';
+import { usePostsContext } from '../context/PostContext'; // Utilisation du context harmonisé
 import ProfileHeader from '../components/Profile/ProfileHeader';
 import ProfileSidebar from '../components/Profile/ProfileSidebar';
 import PostCard from '../components/Feed/PostCard';
-import NavBar from '../components/Layout/Navbar'; // Si besoin
+import NavBar from '../components/Layout/Navbar';
 
 const UserProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { posts } = usePosts();
-  
+  const { posts } = usePostsContext(); // Utilisation de usePostsContext
+
   const [profileUser, setProfileUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -29,7 +29,7 @@ const UserProfile = () => {
         setProfileUser(data);
       } catch (err) {
         console.error("Erreur lors de la récupération du profil :", err.message);
-        navigate('/404'); // Ou gérer l'erreur autrement
+        navigate('/404');
       } finally {
         setLoading(false);
       }
@@ -48,10 +48,9 @@ const UserProfile = () => {
     return <div className="min-h-screen flex items-center justify-center bg-[#F0F2F5]">Utilisateur introuvable</div>;
   }
 
-  // Filtrer les posts pour n'afficher que ceux de cet utilisateur
+  // Filtrer les posts de cet utilisateur
   const userPosts = posts.filter(post => post.author?.id === id || post.user_id === id);
 
-  // Mettre en forme les données pour ProfileHeader et ProfileSidebar
   const displayUser = {
     firstname: profileUser.firstname,
     lastname: profileUser.lastname,
@@ -60,9 +59,7 @@ const UserProfile = () => {
     bio: profileUser.bio
   };
 
-  // Extraire dynamiquement les médias à partir des posts de cet utilisateur
   const videoExtensions = ['mp4', 'webm', 'ogg', 'mov'];
-  
   const userPhotos = userPosts
     .filter(post => post.image_url && !videoExtensions.some(ext => post.image_url.toLowerCase().endsWith(ext)))
     .map(post => ({ url: post.image_url }));
@@ -73,14 +70,14 @@ const UserProfile = () => {
 
   return (
     <div className="min-h-screen bg-[#F0F2F5]">
-      {/* On peut ajouter la NavBar ici si tu veux qu'elle apparaisse sur les profils */}
-      
+      <NavBar />
+
       <ProfileHeader user={displayUser} isOwner={false} />
 
       <main className="max-w-[1100px] mx-auto grid grid-cols-1 md:grid-cols-12 gap-4 mt-4 px-4 pb-10">
-        
+
         <div className="md:col-span-12 lg:col-span-5">
-          <ProfileSidebar 
+          <ProfileSidebar
             user={displayUser}
             photos={userPhotos}
             videos={userVideos}
@@ -95,20 +92,10 @@ const UserProfile = () => {
             </div>
           ) : (
             userPosts.map(post => (
-              <PostCard 
+              <PostCard
                 key={post.id}
-                id={post.id}
-                user={{
-                  id: profileUser.id,
-                  name: `${profileUser.firstname} ${profileUser.lastname}`,
-                  avatar: profileUser.avatar_url
-                }}
-                content={post.content}
-                image={post.image_url}
-                time={post.created_at}
-                likes_count={post.likes_count}
-                isLikedByMe={post.isLikedByMe}
-                comments={post.comments}
+                {...post} // TECHNIQUE CRUCIALE : On passe tout l'objet post
+              // Cela garantit que image_url et author sont transmis avec les bons noms
               />
             ))
           )}
