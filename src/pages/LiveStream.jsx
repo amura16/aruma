@@ -3,7 +3,7 @@ import NavBar from '../components/Layout/Navbar';
 import LivePlayer from '../components/Live/LivePlayer';
 import LiveChat from '../components/Live/LiveChat';
 import { useLocation, Navigate, useNavigate } from 'react-router-dom';
-import { supabase } from '../services/supabaseClient';
+import supabase from '../services/supabaseClient';
 import { Loader2, Share2, Heart } from 'lucide-react';
 
 const LiveStream = () => {
@@ -11,7 +11,7 @@ const LiveStream = () => {
   const navigate = useNavigate();
   const searchParams = new URLSearchParams(location.search);
   const roomName = searchParams.get('room');
-  
+
   const [streamerInfo, setStreamerInfo] = useState(null);
   const [otherLives, setOtherLives] = useState([]);
   const [loading, setLoading] = useState(true);

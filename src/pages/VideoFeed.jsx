@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import NavBar from '../components/Layout/Navbar';
 import VideoSidebar from '../components/Video/VideoSidebar';
 import VideoCard from '../components/Video/VideoCard';
-import { supabase } from '../services/supabaseClient';
+import supabase from '../services/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 
 const VideoFeed = () => {

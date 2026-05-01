@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { User, Lock, ChevronLeft, Save, AlertCircle, Camera, Calendar, Mail, UserCircle } from 'lucide-react';
 import NavBar from '../components/Layout/Navbar';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../services/supabaseClient';
+import supabase from '../services/supabaseClient';
 
 const AccountSettings = () => {
   const { user, updateProfile } = useAuth();

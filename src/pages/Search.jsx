@@ -4,7 +4,7 @@ import NavBar from '../components/Layout/Navbar';
 import PostCard from '../components/Feed/PostCard';
 import MediaGrid from '../components/Profile/MediaGrid';
 import { usePosts } from '../hooks/usePosts';
-import { supabase } from '../services/supabaseClient';
+import supabase from '../services/supabaseClient';
 import { Users, FileText, Image as ImageIcon, Film, Search as SearchIcon } from 'lucide-react';
 
 const Search = () => {
@@ -25,7 +25,7 @@ const Search = () => {
         setProfiles([]);
         return;
       }
-      
+
       setLoadingProfiles(true);
       try {
         const searchTerm = `%${query}%`;
@@ -48,13 +48,13 @@ const Search = () => {
 
   // Filtrer les posts localement pour plus de simplicité et réutiliser le contexte
   const qLower = query.toLowerCase();
-  
+
   // 1. Statuts : Tous les posts qui contiennent le texte recherché
   const statusResults = posts.filter(post => post.content?.toLowerCase().includes(qLower));
 
   // 2. Extensions pour photos et vidéos
   const videoExtensions = ['mp4', 'webm', 'ogg', 'mov'];
-  
+
   // 3. Photos : Les posts qui ont une image/photo ET correspondent à la recherche (ou via l'auteur)
   const photoResults = statusResults
     .filter(post => post.image_url && !videoExtensions.some(ext => post.image_url.toLowerCase().endsWith(ext)))
@@ -76,9 +76,9 @@ const Search = () => {
   return (
     <div className="min-h-screen bg-[#F0F2F5]">
       <NavBar />
-      
+
       <main className="max-w-[1000px] mx-auto pt-6 px-4 pb-20">
-        
+
         {/* Entête de recherche */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
           <div className="flex items-center gap-3 mb-2">
@@ -98,8 +98,8 @@ const Search = () => {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-6 py-4 font-bold text-[15px] border-b-2 transition-colors whitespace-nowrap
-                ${activeTab === tab.id 
-                  ? 'border-blue-600 text-blue-600 bg-blue-50/50' 
+                ${activeTab === tab.id
+                  ? 'border-blue-600 text-blue-600 bg-blue-50/50'
                   : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'
                 }
               `}
@@ -115,7 +115,7 @@ const Search = () => {
 
         {/* Contenu des Onglets */}
         <div className="space-y-4">
-          
+
           {/* ONGLET : PERSONNES */}
           {activeTab === 'personnes' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -125,9 +125,9 @@ const Search = () => {
                 profiles.map((profile) => (
                   <div key={profile.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between hover:shadow-md transition">
                     <div className="flex items-center gap-3">
-                      <img 
-                        src={profile.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${profile.firstname}`} 
-                        alt={profile.firstname} 
+                      <img
+                        src={profile.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${profile.firstname}`}
+                        alt={profile.firstname}
                         className="w-14 h-14 rounded-full object-cover border border-gray-100"
                       />
                       <div>
@@ -135,7 +135,7 @@ const Search = () => {
                         <p className="text-gray-500 text-[13px]">@{profile.username || profile.firstname.toLowerCase()}</p>
                       </div>
                     </div>
-                    <button 
+                    <button
                       onClick={() => navigate(`/user/${profile.id}`)}
                       className="bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold px-4 py-2 rounded-lg text-sm transition"
                     >
@@ -156,7 +156,7 @@ const Search = () => {
             <div className="max-w-[650px] mx-auto space-y-4">
               {statusResults.length > 0 ? (
                 statusResults.map(post => (
-                  <PostCard 
+                  <PostCard
                     key={post.id}
                     id={post.id}
                     user={post.author ? {

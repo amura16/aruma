@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useFriends } from '../../hooks/useFriends';
-import { supabase } from '../../services/supabaseClient';
+import supabase from '../../services/supabaseClient';
 
 const ProfileHeader = ({ user, isOwner = false }) => {
   const navigate = useNavigate();

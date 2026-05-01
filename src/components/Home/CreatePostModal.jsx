@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { X, Image as ImageIcon, User2, Smile, MapPin, Film, Loader2, AlertCircle } from 'lucide-react';
 import { usePostsContext } from '../../context/PostContext';
 import { useAuth } from '../../context/AuthContext';
-import { supabase } from '../../services/supabaseClient';
+import supabase from '../../services/supabaseClient';
 
 const CreatePostModal = ({ userAvatar, closeModal }) => {
   const [content, setContent] = useState("");

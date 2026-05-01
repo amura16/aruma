@@ -3,7 +3,7 @@ import { Bookmark, FileText, Image as ImageIcon, Film, ChevronLeft, Loader2 } fr
 import { useNavigate } from 'react-router-dom';
 import NavBar from '../components/Layout/Navbar';
 import PostCard from '../components/Feed/PostCard';
-import { supabase } from '../services/supabaseClient';
+import supabase from '../services/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 
 const Saved = () => {
@@ -78,8 +78,8 @@ const Saved = () => {
     <button
       onClick={() => setActiveTab(id)}
       className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all whitespace-nowrap ${activeTab === id
-          ? 'bg-blue-600 text-white shadow-lg shadow-blue-100'
-          : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-100'
+        ? 'bg-blue-600 text-white shadow-lg shadow-blue-100'
+        : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-100'
         }`}
     >
       <Icon size={20} />

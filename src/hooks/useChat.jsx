@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import supabase from '../services/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 
@@ -9,137 +9,177 @@ export const useChat = () => {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // 1. Charger la liste des discussions au montage
-  useEffect(() => {
-    if (user) {
-      fetchConversations();
-    }
-  }, [user]);
+  // --- 1. RÉCUPÉRATION DES CONVERSATIONS (SIDEBAR) ---
+  const fetchConversations = useCallback(async () => {
+    if (!user) return;
 
-  const fetchConversations = async () => {
     try {
-      const { data, error } = await supabase
-        .from('conversations')
+      // Étape A : Récupérer les ID de conversations où l'utilisateur est présent
+      const { data: participations, error: partError } = await supabase
+        .from('conversation_participants')
         .select(`
-          id,
-          last_message,
-          updated_at,
-          participant_id,
-          friend:profiles!participant_id(id, username, firstname, lastname, avatar_url)
+          conversation_id,
+          conversations:conversation_id (
+            id,
+            last_message_at
+          )
         `)
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: false });
+        .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (partError) throw partError;
 
-      const formatted = data.map(c => ({
-        id: c.id,
-        display_name: `${c.friend.firstname} ${c.friend.lastname}`,
-        display_avatar: c.friend.avatar_url,
-        friend_id: c.friend.id,
-        last_message: c.last_message,
-        isTemporary: false
-      }));
-      setConversations(formatted);
+      // Étape B : Pour chaque conversation, récupérer les infos de l'ami et le dernier message
+      const formatted = await Promise.all(
+        participations.map(async (p) => {
+          // Trouver l'autre participant
+          const { data: otherPart } = await supabase
+            .from('conversation_participants')
+            .select(`profiles:user_id (id, username, firstname, lastname, avatar_url)`)
+            .eq('conversation_id', p.conversation_id)
+            .neq('user_id', user.id)
+            .single();
+
+          // Récupérer le texte du dernier message
+          const { data: lastMsg } = await supabase
+            .from('messages')
+            .select('text')
+            .eq('conversation_id', p.conversation_id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          const friend = otherPart?.profiles;
+          return {
+            id: p.conversation_id,
+            friend_id: friend?.id,
+            display_name: friend ? `${friend.firstname} ${friend.lastname}` : "Utilisateur Inconnu",
+            display_avatar: friend?.avatar_url,
+            last_message: lastMsg?.text || "Nouvelle discussion",
+            updated_at: p.conversations?.last_message_at,
+            isTemporary: false
+          };
+        })
+      );
+
+      // Tri par date décroissante
+      setConversations(formatted.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at)));
     } catch (err) {
       console.error("Erreur fetchConversations:", err.message);
     }
-  };
+  }, [user]);
 
-  // 2. Sélectionner une discussion et charger les messages
-  const selectConversation = async (conversationId) => {
-    if (!conversationId) {
-      setSelectedConversation(null);
-      setMessages([]);
-      return;
-    }
+  // --- 2. GESTION DU TEMPS RÉEL ---
+  useEffect(() => {
+    if (!user) return;
 
-    const conv = conversations.find(c => c.id === conversationId);
+    fetchConversations();
+
+    // Canal unique pour écouter les nouveaux messages et les mises à jour de conv
+    const channel = supabase
+      .channel('realtime-chat')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages'
+      }, (payload) => {
+        // Si le message appartient à la conversation ouverte, on l'ajoute à l'écran
+        if (selectedConversation && payload.new.conversation_id === selectedConversation.id) {
+          setMessages(prev => [...prev, payload.new]);
+        }
+        // On rafraîchit la sidebar pour tout le monde (dernier message / ordre)
+        fetchConversations();
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'conversations'
+      }, () => {
+        fetchConversations();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, selectedConversation, fetchConversations]);
+
+  // --- 3. SÉLECTION D'UNE DISCUSSION ---
+  const selectConversation = async (convId) => {
+    const conv = conversations.find(c => c.id === convId);
     if (!conv) return;
 
     setSelectedConversation(conv);
+    setLoading(true);
 
     const { data, error } = await supabase
       .from('messages')
       .select('*')
-      .eq('conversation_id', conversationId)
+      .eq('conversation_id', convId)
       .order('created_at', { ascending: true });
 
     if (!error) setMessages(data);
+    setLoading(false);
   };
 
-  /**
-   * 3. Préparer une discussion "fantôme" (Instantanéité)
-   * Appelé quand on clique sur un ami dans la recherche qui n'a pas encore de chat.
-   */
+  // --- 4. PRÉPARATION D'UN CHAT "FANTÔME" (DEPUIS RECHERCHE) ---
   const prepareNewConversation = (friend) => {
-    const temporaryConv = {
+    const temp = {
       id: `temp-${friend.id}`,
+      friend_id: friend.id,
       display_name: `${friend.firstname} ${friend.lastname}`,
       display_avatar: friend.avatar_url,
-      friend_id: friend.id,
       last_message: "",
       isTemporary: true
     };
-
-    setSelectedConversation(temporaryConv);
-    setMessages([]); // On vide la zone de chat pour le nouvel utilisateur
+    setSelectedConversation(temp);
+    setMessages([]);
   };
 
-  /**
-   * 4. Envoyer un message (Gère la création auto de la conv si temporaire)
-   */
+  // --- 5. ENVOI DE MESSAGE ---
   const sendMessage = async (text) => {
     if (!selectedConversation || !text.trim()) return;
 
-    let currentConvId = selectedConversation.id;
+    let convId = selectedConversation.id;
 
     try {
-      // SI LA CONVERSATION EST TEMPORAIRE : On la crée réellement en base
+      // Création de la conversation si elle est temporaire
       if (selectedConversation.isTemporary) {
-        const { data: newConv, error: convError } = await supabase
+        // A. Créer la ligne conversation
+        const { data: newConv, error: errC } = await supabase
           .from('conversations')
+          .insert({})
+          .select()
+          .single();
+        if (errC) throw errC;
+        convId = newConv.id;
+
+        // B. Ajouter les participants
+        const { error: errP } = await supabase
+          .from('conversation_participants')
           .insert([
-            { user_id: user.id, participant_id: selectedConversation.friend_id }
-          ])
-          .select().single();
+            { conversation_id: convId, user_id: user.id },
+            { conversation_id: convId, user_id: selectedConversation.friend_id }
+          ]);
+        if (errP) throw errP;
 
-        if (convError) throw convError;
-
-        currentConvId = newConv.id;
-
-        // On met à jour l'état de la sélection pour qu'elle devienne "réelle"
-        setSelectedConversation(prev => ({
-          ...prev,
-          id: currentConvId,
-          isTemporary: false
-        }));
+        setSelectedConversation(prev => ({ ...prev, id: convId, isTemporary: false }));
       }
 
-      // ENVOI DU MESSAGE
-      const { data: msgData, error: msgError } = await supabase
+      // C. Insérer le message
+      const { error: errM } = await supabase
         .from('messages')
-        .insert([
-          {
-            conversation_id: currentConvId,
-            sender_id: user.id,
-            text: text.trim()
-          }
-        ])
-        .select().single();
+        .insert({
+          conversation_id: convId,
+          sender_id: user.id,
+          text: text.trim()
+        });
+      if (errM) throw errM;
 
-      if (msgError) throw msgError;
-
-      // Mise à jour locale des messages
-      setMessages(prev => [...prev, msgData]);
-
-      // Mettre à jour le dernier message dans la liste latérale
+      // D. Mettre à jour le timestamp de la conversation pour le tri
       await supabase
         .from('conversations')
-        .update({ last_message: text.trim(), updated_at: new Date() })
-        .eq('id', currentConvId);
-
-      fetchConversations(); // Rafraîchir la sidebar pour voir la nouvelle discussion
+        .update({ last_message_at: new Date() })
+        .eq('id', convId);
 
     } catch (err) {
       console.error("Erreur envoi message:", err.message);
@@ -152,8 +192,7 @@ export const useChat = () => {
     messages,
     loading,
     selectConversation,
-    prepareNewConversation, // À utiliser dans Messages.jsx
-    sendMessage,
-    fetchConversations
+    prepareNewConversation,
+    sendMessage
   };
 };

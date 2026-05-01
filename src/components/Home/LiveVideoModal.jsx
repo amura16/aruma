@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { supabase } from '../../services/supabaseClient';
+import supabase from '../../services/supabaseClient';
 import LiveChat from '../Live/LiveChat';
 
 const LiveVideoModal = ({ closeModal }) => {
@@ -105,8 +105,8 @@ const LiveVideoModal = ({ closeModal }) => {
           <div className="w-2.5 h-2.5 bg-red-600 rounded-full animate-pulse"></div>
           <h2 className="text-white font-bold text-base">ArumA Studio</h2>
         </div>
-        <button 
-          onClick={handleEndLive} 
+        <button
+          onClick={handleEndLive}
           className="h-9 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-sm transition flex items-center gap-2"
         >
           <X size={18} /> Arrêter
@@ -121,8 +121,8 @@ const LiveVideoModal = ({ closeModal }) => {
               <p className="text-xs">Initialisation du studio...</p>
             </div>
           )}
-          <div 
-            ref={jitsiContainerRef} 
+          <div
+            ref={jitsiContainerRef}
             className="w-full h-full relative"
             style={{ position: 'relative', height: '100%', width: '100%' }}
           />

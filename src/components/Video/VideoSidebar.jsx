@@ -1,6 +1,6 @@
 import React from 'react';
 import { PlayCircle, Tv, Clapperboard, Bookmark, Settings, Search } from 'lucide-react';
-import SearchBar from '../UI/searchBar';
+import SearchBar from '../UI/SearchBar';
 
 const VideoSidebar = () => {
   const menuItems = [
@@ -19,22 +19,21 @@ const VideoSidebar = () => {
             <Settings size={20} />
           </div>
         </div>
-        
-        <SearchBar 
-          placeholder="Rechercher des vidéos" 
-          bgColor="bg-[#F0F2F5]" 
-          textSize="text-[15px]" 
+
+        <SearchBar
+          placeholder="Rechercher des vidéos"
+          bgColor="bg-[#F0F2F5]"
+          textSize="text-[15px]"
           className="mb-4"
         />
       </div>
 
       <nav className="flex-1 px-2">
         {menuItems.map((item, index) => (
-          <div 
+          <div
             key={index}
-            className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
-              item.active ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-100 text-gray-700'
-            }`}
+            className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${item.active ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-100 text-gray-700'
+              }`}
           >
             <div className={item.active ? 'text-blue-600' : 'text-gray-500'}>
               {item.icon}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Smile, Gift, Loader2 } from 'lucide-react';
-import { supabase } from '../../services/supabaseClient';
+import supabase from '../../services/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 
 const LiveChat = ({ roomName }) => {
@@ -56,12 +56,12 @@ const LiveChat = ({ roomName }) => {
           .select('firstname, lastname, avatar_url')
           .eq('id', payload.new.user_id)
           .single();
-        
+
         const fullMessage = {
           ...payload.new,
           user: userData
         };
-        
+
         setMessages(prev => [...prev, fullMessage]);
         setTimeout(scrollToBottom, 100);
       })
@@ -147,8 +147,8 @@ const LiveChat = ({ roomName }) => {
       <div className="p-4 border-t border-gray-100 bg-white">
         <form onSubmit={handleSendMessage} className="relative">
           <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
-            <input 
-              type="text" 
+            <input
+              type="text"
               placeholder={user ? "Écrivez un message..." : "Connectez-vous pour chatter"}
               disabled={!user}
               value={newMessage}
@@ -157,8 +157,8 @@ const LiveChat = ({ roomName }) => {
             />
             <div className="flex items-center gap-2">
               <Smile size={18} className="text-gray-400 hover:text-blue-500 cursor-pointer transition" />
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={!user || !newMessage.trim()}
                 className={`p-1.5 rounded-full transition ${!user || !newMessage.trim() ? 'text-gray-300' : 'text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-200'}`}
               >
