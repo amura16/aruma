@@ -1,14 +1,24 @@
-import React from 'react';
-import { PlayCircle, Tv, Clapperboard, Bookmark, Settings, Search } from 'lucide-react';
+import React, { useState } from 'react';
+import { PlayCircle, Tv, Clapperboard, Settings } from 'lucide-react';
 import SearchBar from '../UI/SearchBar';
 
-const VideoSidebar = () => {
+const VideoSidebar = ({ onFilterChange }) => {
+  // État pour suivre l'onglet actif
+  const [activeTab, setActiveTab] = useState("all");
+
   const menuItems = [
-    { icon: <Tv size={24} />, label: "Accueil", active: true },
-    { icon: <PlayCircle size={24} />, label: "Direct", active: false },
-    { icon: <Clapperboard size={24} />, label: "Reels", active: false },
-    { icon: <Bookmark size={24} />, label: "Vidéos enregistrées", active: false },
+    { id: "all", icon: <Tv size={24} />, label: "Accueil" },
+    { id: "live", icon: <PlayCircle size={24} />, label: "Direct" },
+    { id: "reels", icon: <Clapperboard size={24} />, label: "Reels" },
   ];
+
+  const handleTabClick = (tabId) => {
+    setActiveTab(tabId);
+    // On informe le parent du changement de filtre
+    if (onFilterChange) {
+      onFilterChange(tabId);
+    }
+  };
 
   return (
     <aside className="hidden lg:flex w-[360px] bg-white border-r border-gray-200 h-full flex-col sticky top-[112px] self-start">
@@ -29,13 +39,17 @@ const VideoSidebar = () => {
       </div>
 
       <nav className="flex-1 px-2">
-        {menuItems.map((item, index) => (
+        {menuItems.map((item) => (
           <div
-            key={index}
-            className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${item.active ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-100 text-gray-700'
-              }`}
+            key={item.id}
+            onClick={() => handleTabClick(item.id)}
+            className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+              activeTab === item.id 
+                ? 'bg-blue-50 text-blue-600' 
+                : 'hover:bg-gray-100 text-gray-700'
+            }`}
           >
-            <div className={item.active ? 'text-blue-600' : 'text-gray-500'}>
+            <div className={activeTab === item.id ? 'text-blue-600' : 'text-gray-500'}>
               {item.icon}
             </div>
             <span className="font-semibold text-[15px]">{item.label}</span>
