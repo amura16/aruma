@@ -1,68 +1,194 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import NavBar from '../components/Layout/Navbar';
 import InvitationsSidebar from '../components/Invitations/InvitationsSidebar';
 import FriendRequestCard from '../components/Invitations/FriendRequestCard';
-import { useFriendContext } from '../context/FriendContext'; // Utilisation du Context
+import { useFriendContext } from '../context/FriendContext';
+import { useAuth } from '../context/AuthContext';
+import supabase from '../services/supabaseClient';
 
 const FriendsInvitations = () => {
-  // On récupère les données et les fonctions depuis le Context
-  const { invitations, acceptInvitation, declineInvitation, loading } = useFriendContext();
+  const { user } = useAuth();
+
+  const {
+    invitations,
+    acceptInvitation,
+    declineInvitation,
+    loading
+  } = useFriendContext();
+
+  const [view, setView] = useState("invitations");
+  const [friends, setFriends] = useState([]);
+  const [loadingFriends, setLoadingFriends] = useState(false);
+
+  // -----------------------------
+  // FETCH FRIENDS FROM DB
+  // -----------------------------
+  useEffect(() => {
+    const fetchFriends = async () => {
+      if (!user?.id) return;
+
+      setLoadingFriends(true);
+
+      const { data, error } = await supabase
+        .from('friends')
+        .select(`
+          id,
+          user_id1,
+          user_id2,
+          created_at,
+          profile1:profiles!friends_user_id1_fkey(
+            id,
+            username,
+            firstname,
+            lastname,
+            avatar_url
+          ),
+          profile2:profiles!friends_user_id2_fkey(
+            id,
+            username,
+            firstname,
+            lastname,
+            avatar_url
+          )
+        `)
+        .or(`user_id1.eq.${user.id},user_id2.eq.${user.id}`)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error(error);
+        setFriends([]);
+      } else {
+        setFriends(data || []);
+      }
+
+      setLoadingFriends(false);
+    };
+
+    fetchFriends();
+  }, [user]);
+
+  // -----------------------------
+  // FORMAT FRIENDS (OTHER USER ONLY)
+  // -----------------------------
+  const formattedFriends = useMemo(() => {
+    return friends.map((f) => {
+      const isUser1 = f.user_id1 === user.id;
+      const profile = isUser1 ? f.profile2 : f.profile1;
+
+      return {
+        id: f.id,
+        friend_id: profile?.id,
+        name: `${profile?.firstname || ''} ${profile?.lastname || ''}`,
+        username: profile?.username,
+        avatar: profile?.avatar_url,
+        created_at: f.created_at
+      };
+    });
+  }, [friends, user]);
 
   return (
     <div className="min-h-screen bg-[#F0F2F5]">
-      {/* Barre de navigation supérieure */}
       <NavBar />
 
       <div className="flex flex-col lg:flex-row min-h-[calc(100vh-112px)]">
-        {/* Navigation Gauche (Sidebar) */}
-        <InvitationsSidebar />
 
-        {/* Contenu Principal à Droite */}
+        {/* SIDEBAR */}
+        <InvitationsSidebar
+          view={view}
+          setView={setView}
+        />
+
+        {/* MAIN */}
         <main className="flex-1 p-4 md:p-8">
+
           <div className="max-w-6xl mx-auto">
 
+            {/* HEADER */}
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-gray-900">Invitations</h3>
-              <span className="text-sm text-gray-500 bg-gray-200 px-2 py-1 rounded-full font-medium">
-                {invitations.length} en attente
+              <h3 className="text-xl font-bold">
+                {view === "friends" ? "Amis" : "Invitations"}
+              </h3>
+
+              <span className="text-sm text-gray-500 bg-gray-200 px-2 py-1 rounded-full">
+                {view === "friends"
+                  ? formattedFriends.length
+                  : invitations.length}
               </span>
             </div>
 
-            {/* État de chargement */}
-            {loading && invitations.length === 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="h-72 bg-gray-200 animate-pulse rounded-xl"></div>
-                ))}
-              </div>
-            ) : (
+            {/* ===================== */}
+            {/* INVITATIONS */}
+            {/* ===================== */}
+            {view === "invitations" && (
               <>
-                {/* Grille des invitations */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                  {invitations.map((inv) => (
-                    <FriendRequestCard
-                      key={inv.id}
-                      invitation={inv} // On passe l'objet invitation complet
-                      onAccept={acceptInvitation}
-                      onDecline={declineInvitation}
-                    />
-                  ))}
-                </div>
-
-                {/* État vide */}
-                {invitations.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-dashed border-gray-300 shadow-sm">
-                    <div className="bg-gray-100 p-4 rounded-full mb-4">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                      </svg>
-                    </div>
-                    <p className="text-gray-500 font-medium">Aucune invitation en attente pour le moment.</p>
-                    <p className="text-sm text-gray-400">Les nouvelles demandes apparaîtront ici.</p>
+                {invitations.length === 0 ? (
+                  <div className="text-center text-gray-500 py-20">
+                    Aucune invitation
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    {invitations.map((inv) => (
+                      <FriendRequestCard
+                        key={inv.id}
+                        invitation={inv}
+                        onAccept={acceptInvitation}
+                        onDecline={declineInvitation}
+                      />
+                    ))}
                   </div>
                 )}
               </>
             )}
+
+            {/* ===================== */}
+            {/* FRIENDS (REAL DB) */}
+            {/* ===================== */}
+            {view === "friends" && (
+              <>
+                {loadingFriends ? (
+                  <div className="text-center py-20 text-gray-500">
+                    Chargement des amis...
+                  </div>
+                ) : formattedFriends.length === 0 ? (
+                  <div className="text-center text-gray-500 py-20">
+                    Aucun ami pour le moment
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+
+                    {formattedFriends.map((friend) => (
+                      <div
+                        key={friend.id}
+                        className="bg-white p-4 rounded-xl shadow-sm border hover:shadow-md transition"
+                      >
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={friend.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${friend.name}`}
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
+
+                          <div>
+                            <p className="font-semibold text-gray-900">
+                              {friend.name || "Utilisateur"}
+                            </p>
+
+                            <p className="text-xs text-gray-500">
+                              @{friend.username}
+                            </p>
+                          </div>
+                        </div>
+
+                        <p className="text-xs text-gray-400 mt-3">
+                          Ami depuis {new Date(friend.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    ))}
+
+                  </div>
+                )}
+              </>
+            )}
+
           </div>
         </main>
       </div>
