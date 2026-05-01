@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { X, Image as ImageIcon, User2, Smile, MapPin, MoreHorizontal, Film, Loader2, AlertCircle } from 'lucide-react';
-import { usePosts } from '../../hooks/usePosts';
+import { X, Image as ImageIcon, User2, Smile, MapPin, Film, Loader2, AlertCircle } from 'lucide-react';
+import { usePostsContext } from '../../context/PostContext';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../services/supabaseClient';
 
@@ -10,9 +10,9 @@ const CreatePostModal = ({ userAvatar, closeModal }) => {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  
+
   const fileInputRef = useRef(null);
-  const { createPost } = usePosts();
+  const { createPost } = usePostsContext();
   const { user } = useAuth();
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 Mo
@@ -28,155 +28,138 @@ const CreatePostModal = ({ userAvatar, closeModal }) => {
 
     setErrorMsg("");
     setSelectedFile(file);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(URL.createObjectURL(file));
   };
 
   const handlePost = async () => {
     if (!content.trim() && !selectedFile) return;
-    
+
     setIsUploading(true);
     let mediaUrl = null;
 
     try {
-      // 1. Upload du média si présent
+      // 1. Upload vers le bucket 'posts'
       if (selectedFile) {
         const fileExt = selectedFile.name.split('.').pop();
-        const fileName = `${user.id}-${Math.random()}.${fileExt}`;
-        const filePath = `posts/${fileName}`;
+        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
 
-        const { error: uploadError } = await supabase.storage
+        const { error: uploadError, data } = await supabase.storage
           .from('posts')
-          .upload(filePath, selectedFile);
+          .upload(fileName, selectedFile);
 
         if (uploadError) throw uploadError;
 
-        const { data: { publicUrl } } = supabase.storage
+        // 2. Récupérer l'URL publique
+        const { data: urlData } = supabase.storage
           .from('posts')
-          .getPublicUrl(filePath);
-        
-        mediaUrl = publicUrl;
+          .getPublicUrl(fileName);
+
+        mediaUrl = urlData.publicUrl;
       }
 
-      // 2. Création du post
+      // 3. Envoyer au contexte
       await createPost(content, mediaUrl);
-      
+
       closeModal();
-      setContent("");
-      setSelectedFile(null);
-      setPreviewUrl(null);
     } catch (err) {
-      console.error(err);
-      setErrorMsg("Erreur lors de la publication.");
+      console.error("Erreur publication:", err);
+      setErrorMsg("Impossible de publier : " + err.message);
     } finally {
       setIsUploading(false);
     }
   };
 
-  const userName = user ? `${user.firstname} ${user.lastname}` : "Utilisateur ArumA";
+  const userName = user ? `${user.firstname} ${user.lastname}` : "Utilisateur";
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-white/80 backdrop-blur-sm">
-      <div className="fixed inset-0 bg-black/20" onClick={closeModal}></div>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="bg-white w-full max-w-[500px] rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
 
-      <div className="bg-white w-full max-w-[500px] rounded-xl shadow-2xl border border-gray-200 overflow-hidden relative z-10 animate-in zoom-in-95 duration-200">
-        
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
           <div className="w-8"></div>
           <h2 className="text-xl font-bold text-gray-800">Créer une publication</h2>
-          <button onClick={closeModal} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors">
-            <X size={20} className="text-gray-600" />
+          <button onClick={closeModal} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+            <X size={24} className="text-gray-500" />
           </button>
         </div>
 
-        {/* Scrollable Area */}
-        <div className="max-h-[70vh] overflow-y-auto custom-scrollbar">
-          {/* User Info */}
-          <div className="p-4 flex items-center gap-3">
+        {/* Scrollable Content */}
+        <div className="max-h-[60vh] overflow-y-auto p-4">
+          <div className="flex items-center gap-3 mb-4">
             <img src={userAvatar} className="w-10 h-10 rounded-full object-cover" alt="me" />
             <div>
               <p className="font-bold text-gray-900">{userName}</p>
               <div className="flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-md w-fit">
                 <User2 size={12} />
-                <span className="text-[12px] font-semibold">Public</span>
+                <span className="text-[12px] font-semibold text-gray-600">Public</span>
               </div>
             </div>
           </div>
 
-          {/* Input Area */}
-          <div className="px-4">
-            <textarea
-              autoFocus
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder={`Quoi de neuf, ${user?.firstname || '...'} ?`}
-              className="w-full min-h-[120px] text-xl placeholder:text-gray-400 border-none focus:ring-0 resize-none"
-            />
-          </div>
+          <textarea
+            autoFocus
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder={`Quoi de neuf, ${user?.firstname || '...'} ?`}
+            className="w-full min-h-[120px] text-lg border-none focus:ring-0 resize-none outline-none"
+          />
 
-          {/* Preview Area */}
           {previewUrl && (
-            <div className="px-4 mb-4 relative">
-              <button 
+            <div className="mt-4 relative rounded-xl border border-gray-100 overflow-hidden bg-gray-50">
+              <button
                 onClick={() => { setSelectedFile(null); setPreviewUrl(null); }}
-                className="absolute top-2 right-6 p-1 bg-white rounded-full shadow-md z-10 hover:bg-gray-100"
+                className="absolute top-2 right-2 p-1.5 bg-white/80 hover:bg-white rounded-full shadow-md z-10 transition-colors"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
-              <div className="rounded-xl border border-gray-100 overflow-hidden bg-gray-50">
-                {selectedFile.type.startsWith('image/') ? (
-                  <img src={previewUrl} className="w-full max-h-[300px] object-contain" alt="preview" />
-                ) : (
-                  <video src={previewUrl} className="w-full max-h-[300px]" controls />
-                )}
-              </div>
+              {selectedFile?.type.startsWith('image/') ? (
+                <img src={previewUrl} className="w-full max-h-[300px] object-contain" alt="preview" />
+              ) : (
+                <video src={previewUrl} className="w-full max-h-[300px]" controls />
+              )}
             </div>
           )}
 
           {errorMsg && (
-            <div className="mx-4 mb-4 p-3 bg-red-50 text-red-600 rounded-lg flex items-center gap-2 text-sm font-bold">
+            <div className="mt-4 p-3 bg-red-50 text-red-600 rounded-lg flex items-center gap-2 text-sm font-medium">
               <AlertCircle size={18} /> {errorMsg}
             </div>
           )}
         </div>
 
-        {/* Add to post bar */}
-        <div className="mx-4 p-3 border border-gray-200 rounded-lg flex items-center justify-between mb-4 mt-2">
+        {/* Action Bar */}
+        <div className="mx-4 mb-4 p-3 border border-gray-200 rounded-lg flex items-center justify-between">
           <span className="font-bold text-[15px] text-gray-700">Ajouter à votre publication</span>
           <div className="flex items-center gap-1">
-            <button 
-              onClick={() => fileInputRef.current.click()}
-              className="p-2 hover:bg-gray-100 rounded-full transition group"
-            >
+            <button onClick={() => fileInputRef.current.click()} className="p-2 hover:bg-gray-100 rounded-full group">
               <ImageIcon className="text-green-500 group-hover:scale-110 transition-transform" size={24} />
             </button>
-            <button onClick={() => fileInputRef.current.click()} className="p-2 hover:bg-gray-100 rounded-full transition group">
+            <button onClick={() => fileInputRef.current.click()} className="p-2 hover:bg-gray-100 rounded-full group">
               <Film className="text-red-500 group-hover:scale-110 transition-transform" size={24} />
             </button>
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              className="hidden" 
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
               accept="image/*,video/*"
               onChange={handleFileSelect}
             />
-            <button className="p-2 hover:bg-gray-100 rounded-full transition"><Smile className="text-yellow-500" size={24} /></button>
-            <button className="p-2 hover:bg-gray-100 rounded-full transition"><MapPin className="text-red-500" size={24} /></button>
+            <button className="p-2 hover:bg-gray-100 rounded-full"><Smile className="text-yellow-500" size={24} /></button>
+            <button className="p-2 hover:bg-gray-100 rounded-full"><MapPin className="text-red-500" size={24} /></button>
           </div>
         </div>
 
-        {/* Submit Button */}
+        {/* Footer Submit */}
         <div className="px-4 pb-4">
           <button
             disabled={(!content.trim() && !selectedFile) || isUploading}
             onClick={handlePost}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-bold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2"
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-bold py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all"
           >
             {isUploading ? (
-              <>
-                <Loader2 size={20} className="animate-spin" />
-                Publication en cours...
-              </>
+              <><Loader2 size={20} className="animate-spin" /> Publication...</>
             ) : "Publier"}
           </button>
         </div>

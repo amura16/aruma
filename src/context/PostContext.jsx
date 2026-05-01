@@ -35,7 +35,6 @@ export const PostProvider = ({ children }) => {
       const formattedPosts = data.map(post => {
         const parentComments = post.comments || [];
 
-        // Calcul du total : Commentaires parents + toutes les Replies
         const totalCommentsCount = parentComments.reduce((acc, comment) => {
           const repliesCount = comment.replies?.length || 0;
           return acc + 1 + repliesCount;
@@ -44,7 +43,7 @@ export const PostProvider = ({ children }) => {
         return {
           ...post,
           isLikedByMe: post.likes?.some(like => like.user_id === user?.id),
-          likes_count: post.likes_count || 0, // Utilise la colonne de la table posts
+          likes_count: post.likes_count || 0,
           total_comments_count: totalCommentsCount,
           comments: parentComments
         };
@@ -62,7 +61,7 @@ export const PostProvider = ({ children }) => {
     fetchPosts();
   }, [user?.id]);
 
-  // --- REALTIME (ÉCOUTE GLOBALE) ---
+  // --- REALTIME ---
   useEffect(() => {
     const channel = supabase
       .channel('db-global-realtime')
@@ -77,7 +76,50 @@ export const PostProvider = ({ children }) => {
     };
   }, [user?.id]);
 
-  // --- ACTIONS : LIKES (Logique RPC) ---
+  // --- ACTIONS : POSTS (Ajoutées ici pour corriger ton erreur) ---
+  const createPost = async (content, mediaUrl = null) => {
+    if (!user || (!content.trim() && !mediaUrl)) return;
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .insert({
+          user_id: user.id,
+          content: content,
+          image_url: mediaUrl,
+        });
+      if (error) throw error;
+      // fetchPosts() sera appelé automatiquement via le Realtime
+    } catch (error) {
+      console.error("Erreur createPost:", error.message);
+      throw error;
+    }
+  };
+
+  const updatePost = async (postId, content) => {
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .update({ content })
+        .eq('id', postId);
+      if (error) throw error;
+    } catch (error) {
+      console.error("Erreur updatePost:", error.message);
+    }
+  };
+
+  const deletePost = async (postId) => {
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .delete()
+        .eq('id', postId);
+      if (error) throw error;
+    } catch (error) {
+      console.error("Erreur deletePost:", error.message);
+    }
+  };
+
+  // --- ACTIONS : LIKES ---
   const toggleLike = async (postId, isLiked) => {
     if (!user) return;
     try {
@@ -93,7 +135,7 @@ export const PostProvider = ({ children }) => {
     }
   };
 
-  // --- ACTIONS : COMMENTAIRES (CRUD) ---
+  // --- ACTIONS : COMMENTAIRES ---
   const addComment = async (postId, content) => {
     if (!user || !content.trim()) return;
     await supabase.from('comments').insert({ post_id: postId, user_id: user.id, content });
@@ -107,7 +149,7 @@ export const PostProvider = ({ children }) => {
     await supabase.from('comments').delete().eq('id', commentId);
   };
 
-  // --- ACTIONS : RÉPONSES / REPLIES (CRUD) ---
+  // --- ACTIONS : RÉPONSES ---
   const addReply = async (commentId, content) => {
     if (!user || !content.trim()) return;
     await supabase.from('comment_replies').insert({ comment_id: commentId, user_id: user.id, content });
@@ -126,6 +168,9 @@ export const PostProvider = ({ children }) => {
       posts,
       loading,
       fetchPosts,
+      createPost, // Exporté ici
+      updatePost, // Exporté ici
+      deletePost, // Exporté ici
       toggleLike,
       addComment,
       updateComment,
