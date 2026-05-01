@@ -19,6 +19,10 @@ export const PostProvider = ({ children }) => {
           *,
           author:user_id (id, username, firstname, lastname, avatar_url),
           likes (user_id),
+          parent_post:parent_id (
+            id, content, image_url, created_at,
+            author:user_id (id, username, avatar_url, firstname, lastname)
+          ),
           comments (
             id, content, created_at, user_id,
             author:user_id (id, username, avatar_url, firstname, lastname),
@@ -74,15 +78,27 @@ export const PostProvider = ({ children }) => {
   }, [user?.id]);
 
   // --- 3. ACTIONS SUR LES POSTS ---
-  const createPost = async (content, mediaUrl = null) => {
-    if (!user || (!content.trim() && !mediaUrl)) return;
+
+  /**
+   * Crée un post ou un partage.
+   * supporte le format : createPost({ content, image_url, parent_id })
+   */
+  const createPost = async (postData) => {
+    if (!user) return;
+
+    // Facebook permet de partager sans texte si c'est un partage (parent_id) 
+    // ou s'il y a une image. On vérifie juste qu'il y a au moins UN contenu.
+    const hasContent = postData.content?.trim() || postData.image_url || postData.parent_id;
+    if (!hasContent) return;
+
     try {
       const { error } = await supabase
         .from('posts')
         .insert({
           user_id: user.id,
-          content: content,
-          image_url: mediaUrl,
+          content: postData.content || null,
+          image_url: postData.image_url || null,
+          parent_id: postData.parent_id || null
         });
       if (error) throw error;
     } catch (error) {
@@ -159,7 +175,6 @@ export const PostProvider = ({ children }) => {
     await supabase.from('comment_replies').delete().eq('id', replyId);
   };
 
-  // --- LE RETURN DU PROVIDER (C'est ici qu'il doit se trouver) ---
   return (
     <PostContext.Provider value={{
       posts,
@@ -181,7 +196,6 @@ export const PostProvider = ({ children }) => {
   );
 };
 
-// Hook personnalisé pour utiliser le contexte
 export const usePostsContext = () => {
   const context = useContext(PostContext);
   if (!context) {
