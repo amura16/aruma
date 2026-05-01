@@ -10,7 +10,6 @@ export const useChat = () => {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // 🔒 éviter stale closure realtime
   const selectedConvRef = useRef(null);
 
   useEffect(() => {
@@ -18,7 +17,7 @@ export const useChat = () => {
   }, [selectedConversation]);
 
   // -------------------------------
-  // 1. FETCH CONVERSATIONS
+  // FETCH CONVERSATIONS
   // -------------------------------
   const fetchConversations = useCallback(async () => {
     if (!user) return;
@@ -36,19 +35,15 @@ export const useChat = () => {
 
       const formatted = await Promise.all(
         participations.map(async (p) => {
-          // 👤 autre utilisateur
           const { data: otherPart } = await supabase
             .from('conversation_participants')
             .select(`
-              profiles:user_id (
-                id, username, firstname, lastname, avatar_url
-              )
+              profiles:user_id (id, username, firstname, lastname, avatar_url)
             `)
             .eq('conversation_id', p.conversation_id)
             .neq('user_id', user.id)
             .single();
 
-          // 💬 dernier message
           const { data: lastMsg } = await supabase
             .from('messages')
             .select('text')
@@ -74,9 +69,7 @@ export const useChat = () => {
       );
 
       setConversations(
-        formatted.sort(
-          (a, b) => new Date(b.updated_at) - new Date(a.updated_at)
-        )
+        formatted.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
       );
 
     } catch (err) {
@@ -85,7 +78,7 @@ export const useChat = () => {
   }, [user]);
 
   // -------------------------------
-  // 2. REALTIME
+  // REALTIME
   // -------------------------------
   useEffect(() => {
     if (!user) return;
@@ -104,19 +97,18 @@ export const useChat = () => {
         (payload) => {
           const newMessage = payload.new;
 
-          // 📩 message dans la conversation ouverte
+          // Si conversation ouverte
           if (
             selectedConvRef.current &&
             newMessage.conversation_id === selectedConvRef.current.id
           ) {
             setMessages(prev => {
-              // 🚫 anti doublon
               if (prev.some(m => m.id === newMessage.id)) return prev;
               return [...prev, newMessage];
             });
           }
 
-          // ⚡ update sidebar sans refetch
+          // Update sidebar sans refetch
           setConversations(prev =>
             prev.map(c =>
               c.id === newMessage.conversation_id
@@ -138,7 +130,7 @@ export const useChat = () => {
   }, [user, fetchConversations]);
 
   // -------------------------------
-  // 3. SELECT CONVERSATION
+  // SELECT CONVERSATION
   // -------------------------------
   const selectConversation = async (convId) => {
     if (!convId) {
@@ -164,7 +156,7 @@ export const useChat = () => {
   };
 
   // -------------------------------
-  // 4. NEW TEMP CONVERSATION
+  // PREPARE TEMP CONVERSATION
   // -------------------------------
   const prepareNewConversation = (friend) => {
     const temp = {
@@ -181,14 +173,14 @@ export const useChat = () => {
   };
 
   // -------------------------------
-  // 5. SEND MESSAGE (OPTIMISTIC)
+  // SEND MESSAGE
   // -------------------------------
   const sendMessage = async (text) => {
     if (!selectedConversation || !text.trim()) return;
 
     let convId = selectedConversation.id;
 
-    // ⚡ message instantané
+    // ⚡ Optimistic UI
     const tempMessage = {
       id: `temp-${Date.now()}`,
       conversation_id: convId,
@@ -200,7 +192,7 @@ export const useChat = () => {
     setMessages(prev => [...prev, tempMessage]);
 
     try {
-      // 🆕 création conversation si besoin
+      // 🆕 Première fois → créer conversation
       if (selectedConversation.isTemporary) {
         const { data: newConv, error: errC } = await supabase
           .from('conversations')
@@ -217,14 +209,26 @@ export const useChat = () => {
           { conversation_id: convId, user_id: selectedConversation.friend_id }
         ]);
 
-        setSelectedConversation(prev => ({
-          ...prev,
+        // 🔥 Ajouter dans sidebar immédiatement
+        const newConversation = {
           id: convId,
+          friend_id: selectedConversation.friend_id,
+          display_name: selectedConversation.display_name,
+          display_avatar: selectedConversation.display_avatar,
+          last_message: text.trim(),
+          updated_at: new Date().toISOString(),
           isTemporary: false
-        }));
+        };
+
+        setConversations(prev => {
+          if (prev.some(c => c.id === convId)) return prev;
+          return [newConversation, ...prev];
+        });
+
+        setSelectedConversation(newConversation);
       }
 
-      // 📩 insertion DB
+      // Insert message DB
       const { error: errM } = await supabase
         .from('messages')
         .insert({
@@ -235,7 +239,7 @@ export const useChat = () => {
 
       if (errM) throw errM;
 
-      // ⚡ update sidebar direct
+      // Update sidebar
       setConversations(prev =>
         prev.map(c =>
           c.id === convId

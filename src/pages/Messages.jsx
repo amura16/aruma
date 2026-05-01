@@ -22,7 +22,7 @@ const Messages = () => {
   const [isSearching, setIsSearching] = useState(false);
   const scrollRef = useRef(null);
 
-  // Auto scroll
+  // Scroll automatique
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -65,9 +65,10 @@ const Messages = () => {
 
       <div className="flex flex-1 overflow-hidden relative">
 
-        {/* --- SIDEBAR --- */}
+        {/* --- COLONNE GAUCHE --- */}
         <aside className={`${selectedConversation ? 'hidden' : 'flex'} md:flex flex-col w-full md:w-[360px] border-r border-gray-200 bg-white`}>
 
+          {/* Overlay recherche */}
           {isSearching && (
             <FriendSearchOverlay
               onClose={() => setIsSearching(false)}
@@ -78,10 +79,12 @@ const Messages = () => {
           <div className="p-4">
             <div className="flex justify-between items-center mb-4">
               <h1 className="text-2xl font-bold tracking-tight">Discussions</h1>
+
               <div className="flex gap-2">
                 <button className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
                   <MoreHorizontal size={20} />
                 </button>
+
                 <button
                   onClick={() => setIsSearching(true)}
                   className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors text-blue-600"
@@ -91,6 +94,7 @@ const Messages = () => {
               </div>
             </div>
 
+            {/* Search trigger */}
             <div
               onClick={() => setIsSearching(true)}
               className="relative mb-4 cursor-pointer group"
@@ -102,7 +106,7 @@ const Messages = () => {
             </div>
           </div>
 
-          {/* Conversations */}
+          {/* Liste conversations */}
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             {loading && conversations.length === 0 ? (
               <div className="flex justify-center p-10 text-gray-400">
@@ -149,11 +153,11 @@ const Messages = () => {
           </div>
         </aside>
 
-        {/* --- CHAT --- */}
+        {/* --- COLONNE DROITE --- */}
         <main className={`${selectedConversation ? 'flex' : 'hidden'} md:flex flex-1 flex-col bg-white`}>
           {selectedConversation ? (
             <>
-              {/* HEADER */}
+              {/* Header */}
               <header className="flex justify-between items-center p-3 border-b border-gray-100 shadow-sm z-10 bg-white">
                 <div className="flex items-center gap-3">
                   <button
@@ -186,7 +190,7 @@ const Messages = () => {
                 </div>
               </header>
 
-              {/* MESSAGES */}
+              {/* Messages */}
               <div
                 ref={scrollRef}
                 className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#f8f9fa] custom-scrollbar"
@@ -194,9 +198,8 @@ const Messages = () => {
                 {messages.length > 0 ? (
                   messages.map((m) => (
                     <div
-                      key={m.id} // ✅ FIX IMPORTANT
-                      className={`flex ${m.sender_id === user.id ? 'justify-end' : 'justify-start'
-                        }`}
+                      key={m.id} // ✅ correction importante
+                      className={`flex ${m.sender_id === user.id ? 'justify-end' : 'justify-start'}`}
                     >
                       <div
                         className={`max-w-[75%] px-4 py-2 rounded-2xl text-[15px] shadow-sm ${m.sender_id === user.id
@@ -205,13 +208,9 @@ const Messages = () => {
                           }`}
                       >
                         {m.text}
-
                         <p className="text-[9px] mt-1 opacity-70 text-right font-bold uppercase">
                           {m.created_at
-                            ? new Date(m.created_at).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })
+                            ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                             : "Envoi..."}
                         </p>
                       </div>
@@ -234,7 +233,7 @@ const Messages = () => {
                 )}
               </div>
 
-              {/* INPUT */}
+              {/* Input */}
               <footer className="p-4 bg-white border-t border-gray-100">
                 <form onSubmit={handleSendMessage} className="flex items-center gap-2 max-w-4xl mx-auto">
                   <input
@@ -242,13 +241,13 @@ const Messages = () => {
                     placeholder="Aa"
                     value={msgText}
                     onChange={(e) => setMsgText(e.target.value)}
-                    className="flex-1 bg-gray-100 py-2.5 px-4 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    className="flex-1 bg-gray-100 py-2.5 px-4 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all"
                   />
 
                   <button
                     type="submit"
                     disabled={!msgText.trim()}
-                    className="p-2.5 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50"
+                    className="p-2.5 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md"
                   >
                     <Send size={20} />
                   </button>
@@ -257,7 +256,19 @@ const Messages = () => {
             </>
           ) : (
             <div className="hidden md:flex flex-1 flex-col items-center justify-center text-gray-500 bg-gray-50">
-              <h2 className="text-xl font-bold">Sélectionnez une discussion</h2>
+              <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-6 shadow-sm border border-gray-100">
+                <Edit size={40} className="text-blue-500" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">Sélectionnez une discussion</h2>
+              <p className="max-w-xs text-center text-sm">
+                Choisissez un ami à gauche ou lancez un nouveau message.
+              </p>
+              <button
+                onClick={() => setIsSearching(true)}
+                className="mt-6 px-6 py-2 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition-all shadow-lg"
+              >
+                Nouveau message
+              </button>
             </div>
           )}
         </main>
