@@ -38,6 +38,7 @@ export const PostProvider = ({ children }) => {
 
       const formattedPosts = data.map(post => {
         const parentComments = post.comments || [];
+        // Calcul du total : commentaires + toutes les réponses associées
         const totalCommentsCount = parentComments.reduce((acc, comment) => {
           const repliesCount = comment.replies?.length || 0;
           return acc + 1 + repliesCount;
@@ -64,11 +65,16 @@ export const PostProvider = ({ children }) => {
   useEffect(() => {
     fetchPosts();
 
+    // Inscription aux changements de la base de données
     const channel = supabase
       .channel('db-global-realtime')
+      // Écoute les posts (création, modif, suppression)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => fetchPosts())
+      // Écoute les likes
       .on('postgres_changes', { event: '*', schema: 'public', table: 'likes' }, () => fetchPosts())
+      // Écoute les commentaires
       .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, () => fetchPosts())
+      // Écoute les réponses aux commentaires
       .on('postgres_changes', { event: '*', schema: 'public', table: 'comment_replies' }, () => fetchPosts())
       .subscribe();
 
@@ -78,28 +84,18 @@ export const PostProvider = ({ children }) => {
   }, [user?.id]);
 
   // --- 3. ACTIONS SUR LES POSTS ---
-
-  /**
-   * Crée un post ou un partage.
-   * supporte le format : createPost({ content, image_url, parent_id })
-   */
   const createPost = async (postData) => {
     if (!user) return;
-
-    // Facebook permet de partager sans texte si c'est un partage (parent_id) 
-    // ou s'il y a une image. On vérifie juste qu'il y a au moins UN contenu.
     const hasContent = postData.content?.trim() || postData.image_url || postData.parent_id;
     if (!hasContent) return;
 
     try {
-      const { error } = await supabase
-        .from('posts')
-        .insert({
-          user_id: user.id,
-          content: postData.content || null,
-          image_url: postData.image_url || null,
-          parent_id: postData.parent_id || null
-        });
+      const { error } = await supabase.from('posts').insert({
+        user_id: user.id,
+        content: postData.content || null,
+        image_url: postData.image_url || null,
+        parent_id: postData.parent_id || null
+      });
       if (error) throw error;
     } catch (error) {
       console.error("Erreur createPost:", error.message);
@@ -109,10 +105,7 @@ export const PostProvider = ({ children }) => {
 
   const updatePost = async (postId, content) => {
     try {
-      const { error } = await supabase
-        .from('posts')
-        .update({ content })
-        .eq('id', postId);
+      const { error } = await supabase.from('posts').update({ content }).eq('id', postId);
       if (error) throw error;
     } catch (error) {
       console.error("Erreur updatePost:", error.message);
@@ -121,10 +114,7 @@ export const PostProvider = ({ children }) => {
 
   const deletePost = async (postId) => {
     try {
-      const { error } = await supabase
-        .from('posts')
-        .delete()
-        .eq('id', postId);
+      const { error } = await supabase.from('posts').delete().eq('id', postId);
       if (error) throw error;
     } catch (error) {
       console.error("Erreur deletePost:", error.message);
@@ -150,7 +140,16 @@ export const PostProvider = ({ children }) => {
   // --- 5. ACTIONS SUR LES COMMENTAIRES ---
   const addComment = async (postId, content) => {
     if (!user || !content.trim()) return;
-    await supabase.from('comments').insert({ post_id: postId, user_id: user.id, content });
+    try {
+      const { error } = await supabase.from('comments').insert({
+        post_id: postId,
+        user_id: user.id,
+        content
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.error("Erreur addComment:", error.message);
+    }
   };
 
   const updateComment = async (commentId, content) => {
@@ -164,7 +163,16 @@ export const PostProvider = ({ children }) => {
   // --- 6. ACTIONS SUR LES RÉPONSES (REPLIES) ---
   const addReply = async (commentId, content) => {
     if (!user || !content.trim()) return;
-    await supabase.from('comment_replies').insert({ comment_id: commentId, user_id: user.id, content });
+    try {
+      const { error } = await supabase.from('comment_replies').insert({
+        comment_id: commentId,
+        user_id: user.id,
+        content
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.error("Erreur addReply:", error.message);
+    }
   };
 
   const updateReply = async (replyId, content) => {
