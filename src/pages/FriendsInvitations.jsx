@@ -1,100 +1,44 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import NavBar from '../components/Layout/Navbar';
 import InvitationsSidebar from '../components/Invitations/InvitationsSidebar';
 import FriendRequestCard from '../components/Invitations/FriendRequestCard';
 
-import { useFriendContext } from '../context/FriendContext';
+import { useFriendsContext } from '../context/FriendsContext';
 import { useAuth } from '../context/AuthContext';
-import supabase from '../services/supabaseClient';
 
 const FriendsInvitations = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  // On récupère tout depuis le Context global
   const {
-    invitations,
+    friends,       // Liste des amis synchronisée
+    invitations,   // Invitations reçues synchronisées
+    loading,       // État de chargement global
     acceptInvitation,
-    declineInvitation,
-    loading
-  } = useFriendContext();
+    declineInvitation
+  } = useFriendsContext();
 
   const [view, setView] = useState("invitations");
-  const [friends, setFriends] = useState([]);
-  const [loadingFriends, setLoadingFriends] = useState(false);
 
   // -----------------------------
-  // FETCH FRIENDS (REAL DB)
+  // FORMATAGE DES AMIS
   // -----------------------------
-  useEffect(() => {
-    const fetchFriends = async () => {
-      if (!user?.id) return;
-
-      setLoadingFriends(true);
-
-      const { data, error } = await supabase
-        .from('friends')
-        .select(`
-          id,
-          user_id1,
-          user_id2,
-          created_at,
-          profile1:profiles!friends_user_id1_fkey(
-            id,
-            firstname,
-            lastname,
-            username,
-            avatar_url
-          ),
-          profile2:profiles!friends_user_id2_fkey(
-            id,
-            firstname,
-            lastname,
-            username,
-            avatar_url
-          )
-        `)
-        .or(`user_id1.eq.${user.id},user_id2.eq.${user.id}`)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error("Friends fetch error:", error);
-        setFriends([]);
-      } else {
-        setFriends(data || []);
-      }
-
-      setLoadingFriends(false);
-    };
-
-    fetchFriends();
-  }, [user]);
-
-  // -----------------------------
-  // FORMAT FRIENDS (SAFE)
-  // -----------------------------
+  // Note : Dans le nouveau Context, les profils sont déjà extraits 
+  // et filtrés. On n'a plus besoin de logique complexe ici.
   const formattedFriends = useMemo(() => {
-    return (friends || [])
-      .map((f) => {
-        const isUser1 = f.user_id1 === user?.id;
-
-        const profile = isUser1 ? f.profile2 : f.profile1;
-
-        // 🔥 PROTECTION CRITIQUE
-        if (!profile?.id) return null;
-
-        return {
-          id: f.id,
-          friend_id: profile.id,
-          name: `${profile.firstname || ''} ${profile.lastname || ''}`.trim(),
-          username: profile.username || '',
-          avatar: profile.avatar_url || null,
-          created_at: f.created_at
-        };
-      })
-      .filter(Boolean); // supprime null
-  }, [friends, user]);
+    return (friends || []).map((f) => ({
+      id: f.id,
+      name: `${f.firstname || ''} ${f.lastname || ''}`.trim() || "Utilisateur",
+      username: f.username || 'inconnu',
+      avatar: f.avatar_url || null,
+      // Si vous avez besoin de la date d'amitié, assurez-vous qu'elle est 
+      // renvoyée par le fetchFriends du Context
+      created_at: f.created_at || new Date().toISOString()
+    }));
+  }, [friends]);
 
   return (
     <div className="min-h-screen bg-[#F0F2F5]">
@@ -118,105 +62,81 @@ const FriendsInvitations = () => {
                 {view === "friends" ? "Amis" : "Invitations"}
               </h3>
 
-              <span className="text-sm text-gray-500 bg-gray-200 px-2 py-1 rounded-full">
-                {view === "friends"
-                  ? formattedFriends.length
-                  : invitations.length}
+              <span className="text-sm text-gray-500 bg-gray-200 px-3 py-1 rounded-full font-medium">
+                {view === "friends" ? formattedFriends.length : invitations.length}
               </span>
             </div>
 
-            {/* ===================== */}
-            {/* INVITATIONS */}
-            {/* ===================== */}
-            {view === "invitations" && (
+            {/* CHARGEMENT INITIAL */}
+            {loading && friends.length === 0 && invitations.length === 0 ? (
+              <div className="text-center py-20 text-gray-500">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                Chargement...
+              </div>
+            ) : (
               <>
-                {invitations.length === 0 ? (
-                  <div className="text-center text-gray-500 py-20">
-                    Aucune invitation
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-
-                    {invitations.map((inv) => (
-                      <div
-                        key={inv.id}
-                        onClick={() => {
-                          if (inv.user_id) {
-                            navigate(`/user/${inv.user_id}`);
-                          }
-                        }}
-                        className="cursor-pointer"
-                      >
-                        <FriendRequestCard
-                          invitation={inv}
-                          onAccept={acceptInvitation}
-                          onDecline={declineInvitation}
-                        />
+                {/* ===================== */}
+                {/* VUE INVITATIONS */}
+                {/* ===================== */}
+                {view === "invitations" && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {invitations.length === 0 ? (
+                      <div className="col-span-full text-center text-gray-500 py-20 bg-white rounded-xl border border-dashed">
+                        Aucune invitation reçue pour le moment.
                       </div>
-                    ))}
-
+                    ) : (
+                      invitations.map((inv) => (
+                        <FriendRequestCard
+                          key={inv.id}
+                          invitation={inv}
+                        />
+                      ))
+                    )}
                   </div>
                 )}
-              </>
-            )}
 
-            {/* ===================== */}
-            {/* FRIENDS */}
-            {/* ===================== */}
-            {view === "friends" && (
-              <>
-                {loadingFriends ? (
-                  <div className="text-center py-20 text-gray-500">
-                    Chargement...
-                  </div>
-                ) : formattedFriends.length === 0 ? (
-                  <div className="text-center text-gray-500 py-20">
-                    Aucun ami pour le moment
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-
-                    {formattedFriends.map((friend) => (
-                      <div
-                        key={friend.id}
-                        onClick={() => {
-                          if (friend.friend_id) {
-                            navigate(`/user/${friend.friend_id}`);
-                          }
-                        }}
-                        className="bg-white p-4 rounded-xl shadow-sm border hover:shadow-md transition cursor-pointer"
-                      >
-
-                        <div className="flex items-center gap-3">
-
-                          <img
-                            src={
-                              friend.avatar ||
-                              `https://api.dicebear.com/7.x/initials/svg?seed=${friend.name}`
-                            }
-                            className="w-10 h-10 rounded-full object-cover"
-                          />
-
-                          <div>
-                            <p className="font-semibold text-gray-900 hover:text-blue-600">
-                              {friend.name || "Utilisateur"}
-                            </p>
-
-                            <p className="text-xs text-gray-500">
-                              @{friend.username}
-                            </p>
-                          </div>
-
-                        </div>
-
-                        <p className="text-xs text-gray-400 mt-3">
-                          Ami depuis{" "}
-                          {new Date(friend.created_at).toLocaleDateString()}
-                        </p>
-
+                {/* ===================== */}
+                {/* VUE AMIS */}
+                {/* ===================== */}
+                {view === "friends" && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {formattedFriends.length === 0 ? (
+                      <div className="col-span-full text-center text-gray-500 py-20 bg-white rounded-xl border border-dashed">
+                        Vous n'avez pas encore d'amis.
                       </div>
-                    ))}
-
+                    ) : (
+                      formattedFriends.map((friend) => (
+                        <div
+                          key={friend.id}
+                          onClick={() => navigate(`/user/${friend.id}`)}
+                          className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition cursor-pointer group"
+                        >
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={friend.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${friend.name}`}
+                              className="w-12 h-12 rounded-full object-cover border border-gray-100"
+                              alt={friend.name}
+                            />
+                            <div className="overflow-hidden">
+                              <p className="font-bold text-gray-900 group-hover:text-blue-600 truncate">
+                                {friend.name}
+                              </p>
+                              <p className="text-xs text-gray-500 truncate">
+                                @{friend.username}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="mt-4 pt-3 border-t border-gray-50 flex justify-between items-center">
+                            <span className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">
+                              Ami depuis {new Date(friend.created_at).toLocaleDateString()}
+                            </span>
+                            <button className="text-blue-600 text-xs font-bold hover:underline">
+                              Voir profil
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 )}
               </>

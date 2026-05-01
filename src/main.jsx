@@ -5,7 +5,7 @@ import App from './App.jsx'
 import { AuthProvider } from './context/AuthContext'
 import { PostProvider } from './context/PostContext'
 import { ChatProvider } from './context/ChatContext'
-import { FriendProvider } from './context/FriendContext'
+import { FriendsProvider } from './context/FriendsContext.jsx'
 import { ThemeProvider } from './context/ThemeContext'
 
 createRoot(document.getElementById('root')).render(
@@ -14,9 +14,9 @@ createRoot(document.getElementById('root')).render(
       <AuthProvider>
         <PostProvider>
           <ChatProvider>
-            <FriendProvider>
+            <FriendsProvider>
               <App />
-            </FriendProvider>
+            </FriendsProvider>
           </ChatProvider>
         </PostProvider>
       </AuthProvider>
