@@ -25,11 +25,12 @@ const Messages = () => {
   const [isSearching, setIsSearching] = useState(false);
   const scrollRef = useRef(null);
 
-  // Gérer le paramètre ?userId=... dans l'URL pour ouvrir une conv direct
+  // ouvrir conversation via URL
   useEffect(() => {
     const targetUserId = searchParams.get('userId');
     if (targetUserId && conversations.length > 0) {
       const existing = conversations.find(c => c.friend_id === targetUserId);
+
       if (existing) {
         selectConversation(existing.id);
       } else {
@@ -39,14 +40,16 @@ const Messages = () => {
             .select('id, firstname, lastname, username, avatar_url')
             .eq('id', targetUserId)
             .single();
+
           if (profile) prepareNewConversation(profile);
         };
+
         fetchAndPrepare();
       }
     }
   }, [searchParams, conversations]);
 
-  // Scroll automatique vers le bas
+  // auto scroll
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -56,13 +59,16 @@ const Messages = () => {
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!msgText.trim()) return;
+
     sendMessage(msgText);
     setMsgText("");
   };
 
   const handleSelectFriendFromSearch = (friend) => {
     setIsSearching(false);
+
     const existing = conversations.find(c => c.friend_id === friend.id);
+
     if (existing) {
       selectConversation(existing.id);
     } else {
@@ -80,11 +86,13 @@ const Messages = () => {
 
   return (
     <div className="h-screen flex flex-col bg-white overflow-hidden">
+
       <NavBar />
 
-      <div className="flex flex-1 overflow-hidden relative">
+      {/* MAIN WRAPPER */}
+      <div className="flex flex-1 h-full overflow-hidden relative">
 
-        {/* COLONNE GAUCHE : LISTE DES CONVERSATIONS */}
+        {/* LEFT */}
         <aside className={`${selectedConversation ? 'hidden' : 'flex'} md:flex flex-col w-full md:w-[360px] border-r border-gray-200 bg-white`}>
 
           {isSearching && (
@@ -96,121 +104,129 @@ const Messages = () => {
 
           <div className="p-4">
             <div className="flex justify-between items-center mb-4">
-              <h1 className="text-2xl font-bold tracking-tight">Discussions</h1>
+              <h1 className="text-2xl font-bold">Discussions</h1>
               <div className="flex gap-2">
-                <button className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
+                <button className="p-2 bg-gray-100 rounded-full">
                   <MoreHorizontal size={20} />
                 </button>
-                <button onClick={() => setIsSearching(true)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors text-blue-600">
+                <button onClick={() => setIsSearching(true)} className="p-2 bg-gray-100 rounded-full text-blue-600">
                   <Edit size={20} />
                 </button>
               </div>
             </div>
 
-            <div onClick={() => setIsSearching(true)} className="relative mb-4 cursor-pointer group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-500 transition-colors" size={18} />
-              <div className="w-full bg-gray-100 py-2.5 pl-10 pr-4 rounded-full text-gray-500 text-sm border border-transparent group-hover:border-gray-200">
+            <div onClick={() => setIsSearching(true)} className="relative mb-4 cursor-pointer">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <div className="w-full bg-gray-100 py-2.5 pl-10 pr-4 rounded-full text-gray-500 text-sm">
                 Rechercher un ami...
               </div>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto custom-scrollbar">
-            {loading && conversations.length === 0 ? (
-              <div className="flex justify-center p-10 text-gray-400"><Loader2 className="animate-spin" /></div>
-            ) : conversations.length > 0 ? (
-              conversations.map(c => (
-                <div
-                  key={c.id}
-                  onClick={() => selectConversation(c.id)}
-                  className={`flex items-center gap-3 p-3 mx-2 rounded-xl cursor-pointer transition-all ${selectedConversation?.id === c.id ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
-                >
-                  <div className="relative shrink-0">
-                    <img
-                      src={c.display_avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${c.display_name}`}
-                      className="w-14 h-14 rounded-full object-cover border border-gray-100 shadow-sm"
-                      alt=""
-                    />
-                    {/* BADGE ROUGE TEMPS RÉEL */}
-                    {c.unread_count > 0 && (
-                      <span className="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full border-2 border-white shadow-sm">
-                        {c.unread_count > 9 ? '9+' : c.unread_count}
-                      </span>
-                    )}
-                  </div>
+          <div className="flex-1 overflow-y-auto">
+            {loading ? (
+              <div className="flex justify-center p-10">
+                <Loader2 className="animate-spin" />
+              </div>
+            ) : conversations.map(c => (
+              <div
+                key={c.id}
+                onClick={() => selectConversation(c.id)}
+                className="flex items-center gap-3 p-3 mx-2 rounded-xl cursor-pointer hover:bg-gray-50"
+              >
+                <img
+                  src={c.display_avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${c.display_name}`}
+                  className="w-12 h-12 rounded-full"
+                  alt=""
+                />
 
-                  <div className="flex-1 min-w-0">
-                    <h4 className={`text-[15px] truncate ${c.unread_count > 0 ? 'font-bold text-black' : 'font-semibold text-gray-900'}`}>
-                      {c.display_name}
-                    </h4>
-                    <p className={`text-sm truncate ${c.unread_count > 0 ? 'text-blue-600 font-bold' : selectedConversation?.id === c.id ? 'text-blue-600 font-medium' : 'text-gray-500'}`}>
-                      {c.last_message}
-                    </p>
-                  </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-semibold truncate">{c.display_name}</h4>
+                  <p className="text-sm text-gray-500 truncate">
+                    {c.last_message}
+                  </p>
                 </div>
-              ))
-            ) : (
-              <div className="p-10 text-center text-gray-400 text-sm italic">Aucune discussion.</div>
-            )}
+              </div>
+            ))}
           </div>
         </aside>
 
-        {/* COLONNE DROITE : ZONE DE CHAT */}
-        <main className={`${selectedConversation ? 'flex' : 'hidden'} md:flex flex-1 flex-col bg-white`}>
+        {/* RIGHT */}
+        <main className={`${selectedConversation ? 'flex' : 'hidden'} md:flex flex-col flex-1 h-full bg-white`}>
+
           {selectedConversation ? (
             <>
-              <header className="flex justify-between items-center p-3 border-b border-gray-100 shadow-sm z-10 bg-white">
+              {/* HEADER */}
+              <header className="flex justify-between items-center p-3 border-b bg-white">
                 <div className="flex items-center gap-3">
-                  <button onClick={() => selectConversation(null)} className="md:hidden p-2 hover:bg-gray-100 rounded-full text-gray-600"><ChevronLeft size={24} /></button>
-                  <img src={selectedConversation.display_avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${selectedConversation.display_name}`} className="w-10 h-10 rounded-full object-cover shadow-sm" alt="" />
+                  <button onClick={() => selectConversation(null)} className="md:hidden">
+                    <ChevronLeft size={24} />
+                  </button>
+
+                  <img
+                    src={selectedConversation.display_avatar}
+                    className="w-10 h-10 rounded-full"
+                    alt=""
+                  />
+
                   <div>
-                    <h3 className="font-bold text-[15px] leading-tight">{selectedConversation.display_name}</h3>
-                    <p className="text-[11px] text-green-500 font-medium">En ligne</p>
+                    <h3 className="font-bold">{selectedConversation.display_name}</h3>
+                    <p className="text-xs text-green-500">En ligne</p>
                   </div>
                 </div>
-                <div className="flex gap-2 md:gap-4 text-blue-600">
-                  <button className="p-2 hover:bg-blue-50 rounded-full"><Phone size={20} /></button>
-                  <button className="p-2 hover:bg-blue-50 rounded-full"><Video size={20} /></button>
-                  <button className="p-2 hover:bg-blue-50 rounded-full"><Info size={20} /></button>
+
+                <div className="flex gap-3 text-blue-600">
+                  <Phone size={20} />
+                  <Video size={20} />
+                  <Info size={20} />
                 </div>
               </header>
 
-              <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#f8f9fa] custom-scrollbar">
+              {/* MESSAGES SCROLL AREA */}
+              <div
+                ref={scrollRef}
+                className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50"
+              >
                 {messages.map((m) => (
-                  <div key={m.id} className={`flex ${m.sender_id === user.id ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[75%] px-4 py-2 rounded-2xl text-[15px] shadow-sm ${m.sender_id === user.id ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none'}`}>
+                  <div
+                    key={m.id}
+                    className={`flex ${m.sender_id === user.id ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-[75%] px-4 py-2 rounded-2xl ${m.sender_id === user.id
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white border'
+                        }`}
+                    >
                       {m.text}
-                      <p className="text-[9px] mt-1 opacity-70 text-right font-bold uppercase">
-                        {m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Envoi..."}
-                      </p>
                     </div>
                   </div>
                 ))}
               </div>
 
-              <footer className="p-4 bg-white border-t border-gray-100">
-                <form onSubmit={handleSendMessage} className="flex items-center gap-2 max-w-4xl mx-auto">
+              {/* INPUT FIXED BY FLEX */}
+              <footer className="p-4 border-t bg-white">
+                <form onSubmit={handleSendMessage} className="flex gap-2">
                   <input
-                    type="text"
-                    placeholder="Aa"
                     value={msgText}
                     onChange={(e) => setMsgText(e.target.value)}
-                    className="flex-1 bg-gray-100 py-2.5 px-4 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    placeholder="Aa"
+                    className="flex-1 bg-gray-100 px-4 py-2 rounded-full"
                   />
+
                   <button
                     type="submit"
                     disabled={!msgText.trim()}
-                    className="p-2.5 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 transition-all shadow-md"
+                    className="bg-blue-600 text-white p-2 rounded-full"
                   >
-                    <Send size={20} />
+                    <Send size={18} />
                   </button>
                 </form>
               </footer>
             </>
           ) : (
-            <div className="hidden md:flex flex-1 flex-col items-center justify-center text-gray-500 bg-gray-50">
-              <Edit size={40} className="text-blue-500 mb-4" />
-              <h2 className="text-xl font-bold text-gray-900">Sélectionnez une discussion</h2>
+            <div className="hidden md:flex flex-1 items-center justify-center text-gray-400">
+              Sélectionnez une discussion
             </div>
           )}
         </main>

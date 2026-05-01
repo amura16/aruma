@@ -75,9 +75,9 @@ const NavBar = () => {
     },
   ];
 
-  const secondaryLinks = [
-    { id: 'saved', path: '/saved', icon: <Bookmark size={22} />, label: 'Enregistrés', color: 'text-purple-600' },
-  ];
+  // const secondaryLinks = [
+  //   { id: 'saved', path: '/saved', icon: <Bookmark size={22} />, label: 'Enregistrés', color: 'text-purple-600' },
+  // ];
 
   const isPathActive = (path) => {
     if (path === '/') return location.pathname === '/' || location.pathname === '/home';
@@ -212,7 +212,7 @@ const NavBar = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              {[...navLinks, ...secondaryLinks].map((item) => (
+              {[...navLinks].map((item) => (
                 <button
                   key={item.id}
                   onClick={() => handleNavigation(item.id, item.path)}
