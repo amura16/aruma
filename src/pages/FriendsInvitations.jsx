@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 import NavBar from '../components/Layout/Navbar';
 import InvitationsSidebar from '../components/Invitations/InvitationsSidebar';
 import FriendRequestCard from '../components/Invitations/FriendRequestCard';
+
 import { useFriendContext } from '../context/FriendContext';
 import { useAuth } from '../context/AuthContext';
 import supabase from '../services/supabaseClient';
 
 const FriendsInvitations = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const {
     invitations,
@@ -21,7 +25,7 @@ const FriendsInvitations = () => {
   const [loadingFriends, setLoadingFriends] = useState(false);
 
   // -----------------------------
-  // FETCH FRIENDS FROM DB
+  // FETCH FRIENDS (REAL DB)
   // -----------------------------
   useEffect(() => {
     const fetchFriends = async () => {
@@ -38,16 +42,16 @@ const FriendsInvitations = () => {
           created_at,
           profile1:profiles!friends_user_id1_fkey(
             id,
-            username,
             firstname,
             lastname,
+            username,
             avatar_url
           ),
           profile2:profiles!friends_user_id2_fkey(
             id,
-            username,
             firstname,
             lastname,
+            username,
             avatar_url
           )
         `)
@@ -55,7 +59,7 @@ const FriendsInvitations = () => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error(error);
+        console.error("Friends fetch error:", error);
         setFriends([]);
       } else {
         setFriends(data || []);
@@ -68,22 +72,28 @@ const FriendsInvitations = () => {
   }, [user]);
 
   // -----------------------------
-  // FORMAT FRIENDS (OTHER USER ONLY)
+  // FORMAT FRIENDS (SAFE)
   // -----------------------------
   const formattedFriends = useMemo(() => {
-    return friends.map((f) => {
-      const isUser1 = f.user_id1 === user.id;
-      const profile = isUser1 ? f.profile2 : f.profile1;
+    return (friends || [])
+      .map((f) => {
+        const isUser1 = f.user_id1 === user?.id;
 
-      return {
-        id: f.id,
-        friend_id: profile?.id,
-        name: `${profile?.firstname || ''} ${profile?.lastname || ''}`,
-        username: profile?.username,
-        avatar: profile?.avatar_url,
-        created_at: f.created_at
-      };
-    });
+        const profile = isUser1 ? f.profile2 : f.profile1;
+
+        // 🔥 PROTECTION CRITIQUE
+        if (!profile?.id) return null;
+
+        return {
+          id: f.id,
+          friend_id: profile.id,
+          name: `${profile.firstname || ''} ${profile.lastname || ''}`.trim(),
+          username: profile.username || '',
+          avatar: profile.avatar_url || null,
+          created_at: f.created_at
+        };
+      })
+      .filter(Boolean); // supprime null
   }, [friends, user]);
 
   return (
@@ -100,7 +110,6 @@ const FriendsInvitations = () => {
 
         {/* MAIN */}
         <main className="flex-1 p-4 md:p-8">
-
           <div className="max-w-6xl mx-auto">
 
             {/* HEADER */}
@@ -127,27 +136,38 @@ const FriendsInvitations = () => {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+
                     {invitations.map((inv) => (
-                      <FriendRequestCard
+                      <div
                         key={inv.id}
-                        invitation={inv}
-                        onAccept={acceptInvitation}
-                        onDecline={declineInvitation}
-                      />
+                        onClick={() => {
+                          if (inv.user_id) {
+                            navigate(`/user/${inv.user_id}`);
+                          }
+                        }}
+                        className="cursor-pointer"
+                      >
+                        <FriendRequestCard
+                          invitation={inv}
+                          onAccept={acceptInvitation}
+                          onDecline={declineInvitation}
+                        />
+                      </div>
                     ))}
+
                   </div>
                 )}
               </>
             )}
 
             {/* ===================== */}
-            {/* FRIENDS (REAL DB) */}
+            {/* FRIENDS */}
             {/* ===================== */}
             {view === "friends" && (
               <>
                 {loadingFriends ? (
                   <div className="text-center py-20 text-gray-500">
-                    Chargement des amis...
+                    Chargement...
                   </div>
                 ) : formattedFriends.length === 0 ? (
                   <div className="text-center text-gray-500 py-20">
@@ -159,16 +179,26 @@ const FriendsInvitations = () => {
                     {formattedFriends.map((friend) => (
                       <div
                         key={friend.id}
-                        className="bg-white p-4 rounded-xl shadow-sm border hover:shadow-md transition"
+                        onClick={() => {
+                          if (friend.friend_id) {
+                            navigate(`/user/${friend.friend_id}`);
+                          }
+                        }}
+                        className="bg-white p-4 rounded-xl shadow-sm border hover:shadow-md transition cursor-pointer"
                       >
+
                         <div className="flex items-center gap-3">
+
                           <img
-                            src={friend.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${friend.name}`}
+                            src={
+                              friend.avatar ||
+                              `https://api.dicebear.com/7.x/initials/svg?seed=${friend.name}`
+                            }
                             className="w-10 h-10 rounded-full object-cover"
                           />
 
                           <div>
-                            <p className="font-semibold text-gray-900">
+                            <p className="font-semibold text-gray-900 hover:text-blue-600">
                               {friend.name || "Utilisateur"}
                             </p>
 
@@ -176,11 +206,14 @@ const FriendsInvitations = () => {
                               @{friend.username}
                             </p>
                           </div>
+
                         </div>
 
                         <p className="text-xs text-gray-400 mt-3">
-                          Ami depuis {new Date(friend.created_at).toLocaleDateString()}
+                          Ami depuis{" "}
+                          {new Date(friend.created_at).toLocaleDateString()}
                         </p>
+
                       </div>
                     ))}
 
