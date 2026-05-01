@@ -6,60 +6,85 @@ export const usePosts = () => {
     posts,
     loading,
     error,
-    addPost,
-    toggleLike, // Changé pour correspondre à la logique de bascule
+    toggleLike,
     addComment,
+    updateComment,
+    deleteComment,
     addReply,
-    likeComment,
+    updateReply,
+    deleteReply,
+    // Si tu as ces fonctions dans ton context (non détaillées précédemment mais présentes dans ton hook)
+    addPost,
     updatePost,
-    deletePost,
-    toggleSavePost
+    deletePost
   } = usePostsContext();
 
   const { user } = useAuth();
 
-  // Créer un nouveau post
+  // --- LOGIQUE POSTS ---
   const createPost = async (content, image_url = null) => {
-    if (!user) return;
+    if (!user || !addPost) return;
     await addPost(content, image_url, user.id);
   };
 
-  // Gérer le like (sans mise à jour locale, attend le Realtime)
-  const handleLike = async (postId, isLikedByMe) => {
+  const handleLikePost = async (postId, isLikedByMe) => {
     if (!user) return;
-    // On passe l'état actuel pour savoir s'il faut insérer ou supprimer
     await toggleLike(postId, isLikedByMe);
   };
 
-  // Gérer l'ajout de commentaire
-  const handleComment = async (postId, content) => {
+  // --- LOGIQUE COMMENTAIRES ---
+  const handleAddComment = async (postId, content) => {
     if (!user) return;
     await addComment(postId, content);
   };
 
-  // Gérer l'ajout de réponse
-  const handleReply = async (postId, commentId, content) => {
+  const handleUpdateComment = async (commentId, content) => {
     if (!user) return;
-    await addReply(postId, commentId, user.id, content);
+    await updateComment(commentId, content);
   };
 
-  // Gérer le like sur un commentaire
-  const handleLikeComment = async (commentId) => {
+  const handleDeleteComment = async (commentId) => {
     if (!user) return;
-    await likeComment(commentId, user.id);
+    await deleteComment(commentId);
+  };
+
+  // --- LOGIQUE RÉPONSES (REPLIES) ---
+  const handleAddReply = async (commentId, content) => {
+    if (!user) return;
+    // Note : On passe uniquement commentId et content, l'user_id est géré dans le context
+    await addReply(commentId, content);
+  };
+
+  const handleUpdateReply = async (replyId, content) => {
+    if (!user) return;
+    await updateReply(replyId, content);
+  };
+
+  const handleDeleteReply = async (replyId) => {
+    if (!user) return;
+    await deleteReply(replyId);
   };
 
   return {
+    // États
     posts,
     loading,
     error,
+
+    // Actions Posts
     createPost,
-    likePost: handleLike, // Utilisé par PostCard
-    addComment: handleComment,
-    addReply: handleReply,
-    likeComment: handleLikeComment,
+    likePost: handleLikePost,
     updatePost,
     deletePost,
-    toggleSavePost
+
+    // Actions Commentaires
+    addComment: handleAddComment,
+    updateComment: handleUpdateComment,
+    deleteComment: handleDeleteComment,
+
+    // Actions Réponses
+    addReply: handleAddReply,
+    updateReply: handleUpdateReply,
+    deleteReply: handleDeleteReply
   };
 };
