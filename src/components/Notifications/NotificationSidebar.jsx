@@ -15,9 +15,6 @@ const NotificationSidebar = ({ filter, setFilter }) => {
 
       <div className="p-4 flex justify-between items-center">
         <h2 className="text-2xl font-bold">Notifications</h2>
-        <div className="p-2 hover:bg-gray-100 rounded-full cursor-pointer">
-          <Settings size={20} />
-        </div>
       </div>
 
       <div className="px-4 mb-2">
@@ -29,8 +26,8 @@ const NotificationSidebar = ({ filter, setFilter }) => {
               key={f.key}
               onClick={() => setFilter(f.key)}
               className={`px-4 py-2 rounded-full text-sm font-semibold transition ${filter === f.key
-                  ? 'bg-blue-100 text-blue-600'
-                  : 'hover:bg-gray-100 text-gray-700'
+                ? 'bg-blue-100 text-blue-600'
+                : 'hover:bg-gray-100 text-gray-700'
                 }`}
             >
               {f.label}

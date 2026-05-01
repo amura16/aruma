@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search } from 'lucide-react';
 
-const SearchBar = ({ 
-  placeholder = "Rechercher...", 
-  className = "", 
-  bgColor = "bg-gray-100", 
+const SearchBar = ({
+  placeholder = "Rechercher...",
+  className = "",
+  bgColor = "bg-gray-100",
   textSize = "text-sm",
   fullWidth = true
 }) => {
@@ -30,13 +30,13 @@ const SearchBar = ({
   return (
     <div className={`relative ${fullWidth ? 'w-full' : ''} ${className}`}>
       {/* L'icône est positionnée de manière absolue pour ne pas gêner le texte */}
-      <Search 
-        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" 
-        size={18} 
+      <Search
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+        size={18}
       />
-      <input 
-        type="text" 
-        placeholder={placeholder} 
+      <input
+        type="text"
+        placeholder={placeholder}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={handleKeyDown}
