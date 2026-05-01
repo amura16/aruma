@@ -14,11 +14,11 @@ const Notifications = () => {
     markAllAsRead
   } = useNotifications();
 
-  // 🔥 GLOBAL FILTER (desktop + mobile)
+  // 🔥 GLOBAL FILTER (desktop + mobile sidebar sync)
   const [filter, setFilter] = useState("all");
 
   // -----------------------------
-  // FILTER LOGIC (source unique)
+  // FILTER LOGIC (SOURCE UNIQUE)
   // -----------------------------
   const filteredNotifications = notifications.filter((n) => {
     if (filter === "unread") return !n.is_read;
@@ -29,7 +29,7 @@ const Notifications = () => {
   });
 
   // -----------------------------
-  // TIME FORMAT
+  // FORMAT TIME
   // -----------------------------
   const formatTime = (date) => {
     const diff = (new Date() - new Date(date)) / 1000;
@@ -41,7 +41,7 @@ const Notifications = () => {
   };
 
   // -----------------------------
-  // LOADING
+  // LOADING STATE
   // -----------------------------
   if (loading && notifications.length === 0) {
     return (
@@ -57,15 +57,13 @@ const Notifications = () => {
 
       <div className="flex max-w-[1200px] mx-auto min-h-[calc(100vh-112px)]">
 
-        {/* 💻 DESKTOP SIDEBAR (tri réel ici) */}
-        <div className="hidden md:block">
-          <NotificationSidebar
-            filter={filter}
-            setFilter={setFilter}
-          />
-        </div>
+        {/* 💻 SIDEBAR DESKTOP (TRI COMPLET ICI) */}
+        <NotificationSidebar
+          filter={filter}
+          setFilter={setFilter}
+        />
 
-        {/* MAIN */}
+        {/* MAIN CONTENT */}
         <main className="flex-1 px-2 md:px-8 py-4">
 
           <div className="max-w-[680px] mx-auto">
@@ -82,8 +80,8 @@ const Notifications = () => {
               </button>
             </div>
 
-            {/* 📱 MOBILE FILTERS ONLY */}
-            <div className="flex md:hidden gap-2 mb-3 overflow-x-auto px-2">
+            {/* 📱 MOBILE FILTERS (inchangé, indépendant du desktop) */}
+            <div className="flex lg:hidden gap-2 mb-3 overflow-x-auto px-2">
               {[
                 { key: "all", label: "Toutes" },
                 { key: "unread", label: "Non lues" },
@@ -96,7 +94,7 @@ const Notifications = () => {
                   onClick={() => setFilter(f.key)}
                   className={`px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap transition ${filter === f.key
                       ? "bg-blue-600 text-white"
-                      : "bg-gray-100 text-gray-600"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                     }`}
                 >
                   {f.label}
