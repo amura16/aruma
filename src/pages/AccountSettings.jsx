@@ -58,7 +58,7 @@ const AccountSettings = () => {
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
-      
+
       const publicUrlWithCacheBuster = `${publicUrl}?t=${Date.now()}`;
 
       const { success, error } = await updateProfile({ avatar_url: publicUrlWithCacheBuster });
@@ -86,7 +86,7 @@ const AccountSettings = () => {
 
       const { email, ...updates } = profileData;
       await updateProfile(updates);
-      
+
       if (profileData.email === user.email) {
         setMessage({ type: 'success', text: 'Profil mis à jour avec succès !' });
       }
@@ -137,9 +137,8 @@ const AccountSettings = () => {
         </div>
 
         {message.text && (
-          <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2 z-50 ${
-            message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-          }`}>
+          <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2 z-50 ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+            }`}>
             <AlertCircle size={20} />
             <span className="font-semibold">{message.text}</span>
           </div>
@@ -167,25 +166,25 @@ const AccountSettings = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-gray-400 uppercase ml-1">Prénom</label>
-                  <input type="text" value={profileData.firstname} onChange={(e) => setProfileData({...profileData, firstname: e.target.value})} className="w-full p-3 rounded-xl border bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 font-medium" />
+                  <input type="text" value={profileData.firstname} onChange={(e) => setProfileData({ ...profileData, firstname: e.target.value })} className="w-full p-3 rounded-xl border bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 font-medium" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-gray-400 uppercase ml-1">Nom</label>
-                  <input type="text" value={profileData.lastname} onChange={(e) => setProfileData({...profileData, lastname: e.target.value})} className="w-full p-3 rounded-xl border bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 font-medium" />
+                  <input type="text" value={profileData.lastname} onChange={(e) => setProfileData({ ...profileData, lastname: e.target.value })} className="w-full p-3 rounded-xl border bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 font-medium" />
                 </div>
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-gray-400 uppercase ml-1 flex items-center gap-2"><Mail size={14} /> Email</label>
-                <input type="email" value={profileData.email} onChange={(e) => setProfileData({...profileData, email: e.target.value})} className="w-full p-3 rounded-xl border bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 font-medium" />
+                <input type="email" value={profileData.email} onChange={(e) => setProfileData({ ...profileData, email: e.target.value })} className="w-full p-3 rounded-xl border bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 font-medium" />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-gray-400 uppercase ml-1 flex items-center gap-2"><Calendar size={14} /> Date de naissance</label>
-                  <input type="date" value={profileData.birthdate} onChange={(e) => setProfileData({...profileData, birthdate: e.target.value})} className="w-full p-3 rounded-xl border bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 font-medium" />
+                  <input type="date" value={profileData.birthdate} onChange={(e) => setProfileData({ ...profileData, birthdate: e.target.value })} className="w-full p-3 rounded-xl border bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 font-medium" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-gray-400 uppercase ml-1 flex items-center gap-2"><UserCircle size={14} /> Genre</label>
-                  <select value={profileData.gender} onChange={(e) => setProfileData({...profileData, gender: e.target.value})} className="w-full p-3 rounded-xl border bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                  <select value={profileData.gender} onChange={(e) => setProfileData({ ...profileData, gender: e.target.value })} className="w-full p-3 rounded-xl border bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 font-medium">
                     <option value="">Sélectionner...</option>
                     <option value="male">Homme</option>
                     <option value="female">Femme</option>
@@ -207,15 +206,15 @@ const AccountSettings = () => {
             <form onSubmit={handleChangePassword} className="space-y-4">
               <div className="space-y-1">
                 <label className="text-xs font-bold text-gray-400 uppercase ml-1">Mot de passe actuel</label>
-                <input type="password" placeholder="••••••••" value={passwords.current} onChange={(e) => setPasswords({...passwords, current: e.target.value})} className="w-full p-3 rounded-xl border bg-gray-50 outline-none focus:ring-2 focus:ring-orange-500 font-medium" />
+                <input type="password" placeholder="••••••••" value={passwords.current} onChange={(e) => setPasswords({ ...passwords, current: e.target.value })} className="w-full p-3 rounded-xl border bg-gray-50 outline-none focus:ring-2 focus:ring-orange-500 font-medium" />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-gray-400 uppercase ml-1">Nouveau mot de passe</label>
-                <input type="password" placeholder="Minimum 6 caractères" value={passwords.new} onChange={(e) => setPasswords({...passwords, new: e.target.value})} className="w-full p-3 rounded-xl border bg-gray-50 outline-none focus:ring-2 focus:ring-orange-500 font-medium" />
+                <input type="password" placeholder="Minimum 6 caractères" value={passwords.new} onChange={(e) => setPasswords({ ...passwords, new: e.target.value })} className="w-full p-3 rounded-xl border bg-gray-50 outline-none focus:ring-2 focus:ring-orange-500 font-medium" />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-gray-400 uppercase ml-1">Confirmer le nouveau</label>
-                <input type="password" placeholder="••••••••" value={passwords.confirm} onChange={(e) => setPasswords({...passwords, confirm: e.target.value})} className="w-full p-3 rounded-xl border bg-gray-50 outline-none focus:ring-2 focus:ring-orange-500 font-medium" />
+                <input type="password" placeholder="••••••••" value={passwords.confirm} onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })} className="w-full p-3 rounded-xl border bg-gray-50 outline-none focus:ring-2 focus:ring-orange-500 font-medium" />
               </div>
               <button disabled={loading} type="submit" className="w-full bg-orange-600 text-white py-4 rounded-xl font-bold hover:bg-orange-700 transition shadow-lg shadow-orange-100">Changer le mot de passe</button>
             </form>
