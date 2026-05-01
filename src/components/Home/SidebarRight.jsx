@@ -114,7 +114,7 @@ const SidebarRight = () => {
               <ContactLine
                 key={friend.id}
                 friend={friend}
-                onClick={(id) => navigate(`/profile/${id}`)}
+                onClick={(id) => navigate(`/user/${id}`)}
               />
             ))
           ) : (
