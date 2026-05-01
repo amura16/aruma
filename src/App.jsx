@@ -20,6 +20,8 @@ import NotFound from './pages/NotFound';
 import Search from './pages/Search';
 import MobileSearch from './pages/MobileSearch';
 import PostDetail from './pages/PostDetail';
+import ForgotPassword from './pages/Auth/ForgotPassword';
+import ResetPassword from './pages/Auth/ResetPassword';
 
 // Composant pour protéger les routes
 const ProtectedRoute = ({ children }) => {
@@ -62,6 +64,8 @@ function App() {
           <Route path="/search" element={<ProtectedRoute><Search /></ProtectedRoute>} />
           <Route path="/mobile-search" element={<ProtectedRoute><MobileSearch /></ProtectedRoute>} />
           <Route path="/post/:id" element={<PostDetail />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* 404 */}
           <Route path="/404" element={<NotFound />} />

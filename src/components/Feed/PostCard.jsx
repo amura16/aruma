@@ -151,7 +151,7 @@ const PostCard = ({
             <p className="text-sm text-gray-600 line-clamp-3">{parent_post.content}</p>
           </div>
           {parent_post.image_url && (
-            <img src={parent_post.image_url} className="w-full h-48 object-cover border-t border-gray-100" alt="original-media" />
+            <img src={parent_post.image_url} className="w-full h-48 object-cover border-t border-gray-100" alt="" />
           )}
         </div>
       )}
@@ -159,7 +159,7 @@ const PostCard = ({
       {/* --- IMAGE DU POST (Si pas un partage) --- */}
       {image_url && !parent_post && (
         <div className="border-y border-gray-100 bg-gray-50 flex justify-center">
-          <img src={image_url} className="w-full h-auto max-h-[500px] object-contain" alt="media" />
+          <img src={image_url} className="w-full h-auto max-h-[500px] object-contain" alt="" />
         </div>
       )}
 

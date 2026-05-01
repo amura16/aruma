@@ -134,8 +134,6 @@ const CreatePostModal = ({ userAvatar, closeModal }) => {
               accept="image/*,video/*"
               onChange={handleFileSelect}
             />
-            <button className="p-2 hover:bg-gray-100 rounded-full"><Smile className="text-yellow-500" size={24} /></button>
-            <button className="p-2 hover:bg-gray-100 rounded-full"><MapPin className="text-red-500" size={24} /></button>
           </div>
         </div>
 

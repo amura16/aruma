@@ -70,11 +70,6 @@ const SidebarLeft = () => {
           onClick={() => navigate('/video')}
         />
         <SidebarLink
-          icon={<Bookmark className="text-purple-500" />}
-          label="Enregistrement"
-          onClick={() => navigate('/saved')}
-        />
-        <SidebarLink
           icon={<Settings className="text-gray-600" />}
           label="Paramètres"
           onClick={() => navigate('/setting')}

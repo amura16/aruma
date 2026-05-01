@@ -25,9 +25,6 @@ const VideoSidebar = ({ onFilterChange }) => {
       <div className="p-4">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">Vidéo</h2>
-          <div className="p-2 hover:bg-gray-100 rounded-full cursor-pointer">
-            <Settings size={20} />
-          </div>
         </div>
 
         <SearchBar
@@ -43,11 +40,10 @@ const VideoSidebar = ({ onFilterChange }) => {
           <div
             key={item.id}
             onClick={() => handleTabClick(item.id)}
-            className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
-              activeTab === item.id 
-                ? 'bg-blue-50 text-blue-600' 
+            className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${activeTab === item.id
+                ? 'bg-blue-50 text-blue-600'
                 : 'hover:bg-gray-100 text-gray-700'
-            }`}
+              }`}
           >
             <div className={activeTab === item.id ? 'text-blue-600' : 'text-gray-500'}>
               {item.icon}

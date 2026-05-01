@@ -79,10 +79,6 @@ const SidebarRight = () => {
         {/* Header */}
         <div className="flex justify-between items-center px-2 mb-4 text-gray-600">
           <h3 className="font-bold text-[17px]">Contacts</h3>
-          <div className="flex gap-2">
-            <Video size={18} className="cursor-pointer hover:bg-gray-100 rounded-full p-1 w-7 h-7 transition-colors" />
-            <MoreHorizontal size={18} className="cursor-pointer hover:bg-gray-100 rounded-full p-1 w-7 h-7 transition-colors" />
-          </div>
         </div>
 
         {/* Barre de recherche locale */}

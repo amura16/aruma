@@ -46,10 +46,6 @@ const CreatePost = ({ userAvatar }) => {
             <span className="text-gray-600 font-semibold text-sm">Photo/vidéo</span>
           </button>
 
-          <button className="hidden sm:flex flex-1 items-center justify-center gap-2 hover:bg-gray-100 py-2 rounded-lg transition">
-            <Smile className="text-yellow-500" size={22} />
-            <span className="text-gray-600 font-semibold text-sm">Humeur</span>
-          </button>
         </div>
       </div>
 
