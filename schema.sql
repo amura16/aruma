@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS messages (
   conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
   sender_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
   text TEXT NOT NULL,
+  is_read BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
