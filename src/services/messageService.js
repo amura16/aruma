@@ -1,7 +1,9 @@
 import supabase from './supabaseClient';
 
 export const messageService = {
-  // Fetch all conversations for a user
+  /**
+   * Get all conversations for a user
+   */
   async getConversations(userId) {
     const { data, error } = await supabase
       .from('conversation_participants')
@@ -37,7 +39,7 @@ export const messageService = {
           .neq('user_id', userId)
           .maybeSingle();
 
-        // Get the last message
+        // Get last message
         const { data: lastMessage } = await supabase
           .from('messages')
           .select('text, created_at, sender_id')
@@ -46,7 +48,7 @@ export const messageService = {
           .limit(1)
           .maybeSingle();
 
-        // Count unread messages
+        // Count unread
         const { count: unreadCount } = await supabase
           .from('messages')
           .select('*', { count: 'exact', head: true })
@@ -58,18 +60,31 @@ export const messageService = {
 
         return {
           id: conversationId,
-          friend: friend || { id: 'unknown', firstname: 'Utilisateur', lastname: 'Inconnu' },
-          lastMessage: lastMessage || { text: 'Nouvelle discussion', created_at: participation.conversations.last_message_at },
+          friend: friend || {
+            id: 'unknown',
+            firstname: 'Utilisateur',
+            lastname: 'Inconnu'
+          },
+          lastMessage: lastMessage || {
+            text: 'Nouvelle discussion',
+            created_at: participation.conversations?.last_message_at
+          },
           unreadCount: unreadCount || 0,
-          updatedAt: lastMessage?.created_at || participation.conversations.last_message_at
+          updatedAt:
+            lastMessage?.created_at ||
+            participation.conversations?.last_message_at
         };
       })
     );
 
-    return formattedConversations.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+    return formattedConversations.sort(
+      (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
+    );
   },
 
-  // Fetch messages for a specific conversation
+  /**
+   * Get messages for a conversation
+   */
   async getMessages(conversationId) {
     const { data, error } = await supabase
       .from('messages')
@@ -81,7 +96,9 @@ export const messageService = {
     return data;
   },
 
-  // Send a message
+  /**
+   * Send message
+   */
   async sendMessage(conversationId, senderId, text) {
     const { data, error } = await supabase
       .from('messages')
@@ -95,7 +112,7 @@ export const messageService = {
 
     if (error) throw error;
 
-    // Update last_message_at in conversation
+    // Update last activity
     await supabase
       .from('conversations')
       .update({ last_message_at: new Date().toISOString() })
@@ -104,48 +121,46 @@ export const messageService = {
     return data;
   },
 
-  // Create a new conversation
+  /**
+   * 🚀 Create conversation using RPC (FIXED)
+   */
   async createConversation(userId, friendId) {
-    // Check if conversation already exists
-    const { data: existingParticipations } = await supabase
+    // Optional: check if already exists
+    const { data: existing } = await supabase
       .from('conversation_participants')
       .select('conversation_id')
       .eq('user_id', userId);
 
-    if (existingParticipations && existingParticipations.length > 0) {
-      const convIds = existingParticipations.map(p => p.conversation_id);
-      const { data: sharedConv } = await supabase
+    if (existing && existing.length > 0) {
+      const convIds = existing.map((p) => p.conversation_id);
+
+      const { data: shared } = await supabase
         .from('conversation_participants')
         .select('conversation_id')
         .in('conversation_id', convIds)
         .eq('user_id', friendId)
         .maybeSingle();
 
-      if (sharedConv) return sharedConv.conversation_id;
+      if (shared) return shared.conversation_id;
     }
 
-    // Create new one
-    const { data: conversation, error: convError } = await supabase
-      .from('conversations')
-      .insert({})
-      .select()
-      .single();
+    // ✅ Call RPC instead of direct insert
+    const { data, error } = await supabase.rpc(
+      'create_conversation_with_participants',
+      { friend_id: friendId }
+    );
 
-    if (convError) throw convError;
+    if (error) {
+      console.error('RPC createConversation error:', error);
+      throw error;
+    }
 
-    const { error: partError } = await supabase
-      .from('conversation_participants')
-      .insert([
-        { conversation_id: conversation.id, user_id: userId },
-        { conversation_id: conversation.id, user_id: friendId }
-      ]);
-
-    if (partError) throw partError;
-
-    return conversation.id;
+    return data;
   },
 
-  // Mark messages as read
+  /**
+   * Mark messages as read
+   */
   async markAsRead(conversationId, userId) {
     const { error } = await supabase
       .from('messages')
@@ -154,6 +169,6 @@ export const messageService = {
       .neq('sender_id', userId)
       .eq('is_read', false);
 
-    if (error) console.error('Error marking messages as read:', error);
+    if (error) console.error('markAsRead error:', error);
   }
 };

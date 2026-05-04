@@ -11,35 +11,31 @@ import {
 import { usePostsContext } from '../../context/PostContext';
 import { useComments } from '../../context/CommentContext';
 import { useAuth } from '../../context/AuthContext';
-import { useShare } from '../../hooks/useShare'; // Ton nouveau fichier logique
+import { useShare } from '../../hooks/useShare';
 import SharePostCard from './SharePostCard';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 const PostCard = (post) => {
-  // Extraction des données du post
+  // Extraction des données incluant parent_id et parent_post pour le partage
   const { 
     id, content, image_url, created_at, author, 
     likes_count, comments_count, isLikedByMe, user_id,
+    parent_id, parent_post, // Ajout de ces deux champs
     comments = [] 
   } = post;
 
-  // Contextes
   const { toggleLike, deletePost } = usePostsContext();
   const { addComment, deleteComment, addReply, deleteReply } = useComments();
   const { user } = useAuth();
   
-  // États locaux
   const [isLiking, setIsLiking] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [replyTo, setReplyTo] = useState(null);
 
-  // Logique de partage
   const { isShareModalOpen, openShareModal, closeShareModal } = useShare();
-
-  // --- HANDLERS ---
 
   const handleLike = async () => {
     if (isLiking || !user) return;
@@ -93,7 +89,12 @@ const PostCard = (post) => {
             alt="avatar"
           />
           <div>
-            <h4 className="font-bold text-gray-900 text-[15px]">{author?.username || "Anonyme"}</h4>
+            <div className="flex items-center gap-1">
+              <h4 className="font-bold text-gray-900 text-[15px]">{author?.username || "Anonyme"}</h4>
+              {parent_id && (
+                <span className="text-gray-500 text-sm font-normal">• a partagé</span>
+              )}
+            </div>
             <p className="text-xs text-gray-500">{dateFormatted}</p>
           </div>
         </div>
@@ -110,7 +111,7 @@ const PostCard = (post) => {
               <div className="absolute right-0 mt-2 w-40 bg-white border rounded-lg shadow-xl z-10 py-1">
                 <button 
                   onClick={handleDeletePost} 
-                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 text-left"
                 >
                   <Trash2 size={14} /> Supprimer
                 </button>
@@ -120,12 +121,43 @@ const PostCard = (post) => {
         )}
       </div>
 
-      {/* CONTENU DU POST */}
+      {/* CONTENU DU POST ACTUEL */}
       <div className="px-4 pb-3">
         <p className="text-gray-800 whitespace-pre-wrap">{content}</p>
       </div>
+
+      {/* --- AFFICHAGE DU POST PARTAGÉ --- */}
+      {parent_id && (
+        <div className="px-4 pb-4">
+          <div className="border rounded-xl bg-gray-50 p-3 hover:bg-gray-100 transition-colors border-gray-200">
+            {parent_post ? (
+              <>
+                <div className="flex items-center gap-2 mb-2">
+                  <img 
+                    src={parent_post.author?.avatar_url || `https://ui-avatars.com/api/?name=${parent_post.author?.username}`} 
+                    className="w-5 h-5 rounded-full object-cover" 
+                    alt="" 
+                  />
+                  <span className="font-bold text-xs text-gray-900">{parent_post.author?.username}</span>
+                </div>
+                <p className="text-sm text-gray-700 mb-2">{parent_post.content}</p>
+                {parent_post.image_url && (
+                  <img 
+                    src={parent_post.image_url} 
+                    className="rounded-lg max-h-60 w-full object-cover border border-gray-200" 
+                    alt="Original" 
+                  />
+                )}
+              </>
+            ) : (
+              <p className="text-xs text-gray-500 italic py-2 text-center">Cette publication n'est plus disponible.</p>
+            )}
+          </div>
+        </div>
+      )}
       
-      {image_url && (
+      {/* IMAGE DU POST (Si présent et pas un partage pour éviter les doublons) */}
+      {image_url && !parent_id && (
         <div className="border-y bg-gray-50">
           <img 
             src={image_url} 
@@ -175,10 +207,9 @@ const PostCard = (post) => {
         </button>
       </div>
 
-      {/* SECTION COMMENTAIRES (AFFICHAGE CONDITIONNEL) */}
+      {/* SECTION COMMENTAIRES */}
       {showComments && (
         <div className="px-4 pb-4 border-t pt-3 bg-gray-50/50">
-          {/* Formulaire de commentaire */}
           <form onSubmit={handleAddComment} className="flex gap-2 mb-4">
             <img 
               src={user?.avatar_url || `https://ui-avatars.com/api/?name=${user?.username}`} 
@@ -211,7 +242,6 @@ const PostCard = (post) => {
             </div>
           </form>
 
-          {/* Liste des commentaires */}
           <div className="space-y-4">
             {comments.map((comment) => (
               <div key={comment.id} className="space-y-2">
@@ -245,7 +275,6 @@ const PostCard = (post) => {
                       <span>{formatDistanceToNow(new Date(comment.created_at), { locale: fr })}</span>
                     </div>
 
-                    {/* Réponses (Nested) */}
                     {comment.replies && comment.replies.map(reply => (
                       <div key={reply.id} className="flex gap-2 mt-3 ml-4">
                         <CornerDownRight size={16} className="text-gray-300" />
@@ -278,7 +307,6 @@ const PostCard = (post) => {
         </div>
       )}
 
-      {/* MODALE DE PARTAGE */}
       {isShareModalOpen && (
         <SharePostCard 
           originalPost={post} 

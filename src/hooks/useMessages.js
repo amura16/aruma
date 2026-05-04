@@ -17,7 +17,7 @@ export const useMessages = (conversationId, userId) => {
       setMessages([]);
       return;
     }
-    
+
     // If conversationId is a temporary one (starting with 'temp-'), don't fetch
     if (typeof conversationId === 'string' && conversationId.startsWith('temp-')) {
       setMessages([]);
@@ -62,7 +62,7 @@ export const useMessages = (conversationId, userId) => {
             if (prev.some(m => m.id === newMessage.id)) return prev;
             return [...prev, newMessage];
           });
-          
+
           // Mark as read if the message is from someone else
           if (newMessage.sender_id !== userId) {
             messageService.markAsRead(conversationId, userId);
@@ -98,13 +98,13 @@ export const useMessages = (conversationId, userId) => {
     try {
       // If temporary, we need to create the conversation first
       if (isTemp) {
-        const friendId = conversationId.split('-')[1];
+        const friendId = conversationId.replace('temp-', '');
         targetConvId = await messageService.createConversation(userId, friendId);
         // Note: The parent component should handle updating the selectedConversation ID
       }
 
       const realMsg = await messageService.sendMessage(targetConvId, userId, text);
-      
+
       setMessages(prev => prev.map(m => m.id === tempId ? realMsg : m));
       return { success: true, conversationId: targetConvId };
     } catch (err) {
