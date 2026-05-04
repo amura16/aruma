@@ -1,5 +1,6 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+// Changement ici : On utilise HashRouter à la place de BrowserRouter
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 
 // Pages
@@ -28,9 +29,11 @@ const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div className="h-screen flex items-center justify-center bg-[#F0F2F5]">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
-    </div>;
+    return (
+      <div className="h-screen flex items-center justify-center bg-[#F0F2F5]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
+      </div>
+    );
   }
 
   if (!user) {
@@ -42,12 +45,15 @@ const ProtectedRoute = ({ children }) => {
 
 function App() {
   return (
+    /* L'alias Router utilise maintenant HashRouter */
     <Router>
       <div className="app-container">
         <Routes>
           {/* Routes Publiques */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Routes Protégées */}
           <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
@@ -63,11 +69,11 @@ function App() {
           <Route path="/user/:id" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
           <Route path="/search" element={<ProtectedRoute><Search /></ProtectedRoute>} />
           <Route path="/mobile-search" element={<ProtectedRoute><MobileSearch /></ProtectedRoute>} />
-          <Route path="/post/:id" element={<PostDetail />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
 
-          {/* 404 */}
+          {/* Post Detail peut aussi être protégé ou non selon ton choix */}
+          <Route path="/post/:id" element={<ProtectedRoute><PostDetail /></ProtectedRoute>} />
+
+          {/* Gestion des erreurs et redirection */}
           <Route path="/404" element={<NotFound />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
