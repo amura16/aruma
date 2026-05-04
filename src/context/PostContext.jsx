@@ -9,7 +9,7 @@ export const PostProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
-  // --- 1. CHARGEMENT DES POSTS ---
+  // --- 1. CHARGEMENT DES DONNÉES ---
   const fetchPosts = useCallback(async () => {
     try {
       const { data, error } = await supabase
@@ -19,10 +19,12 @@ export const PostProvider = ({ children }) => {
           author:user_id (id, username, avatar_url),
           likes (user_id),
           comments (
-            id, 
-            content, 
-            created_at, 
-            author:user_id (username, avatar_url)
+            id, user_id, content, created_at,
+            author:user_id (username, avatar_url),
+            replies:comment_replies (
+              id, user_id, content, created_at,
+              author:user_id (username, avatar_url)
+            )
           )
         `)
         .order('created_at', { ascending: false });
@@ -41,7 +43,6 @@ export const PostProvider = ({ children }) => {
     } catch (err) {
       console.error("Erreur fetchPosts:", err.message);
     } finally {
-      setPosts(current => current); // Force refresh UI
       setLoading(false);
     }
   }, [user?.id]);
@@ -53,23 +54,16 @@ export const PostProvider = ({ children }) => {
 
     const channel = supabase.channel('db-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          fetchPosts(); // On fetch pour récupérer les jointures de l'auteur
-        } else if (payload.eventType === 'UPDATE') {
-          // IMPORTANT: On ne met à jour que les compteurs venant de la DB
+        if (payload.eventType === 'UPDATE') {
           setPosts(current => current.map(p => 
-            p.id === payload.new.id 
-              ? { ...p, likes_count: payload.new.likes_count, comments_count: payload.new.comments_count, content: payload.new.content } 
-              : p
+            p.id === payload.new.id ? { ...p, ...payload.new } : p
           ));
-        } else if (payload.eventType === 'DELETE') {
-          setPosts(current => current.filter(p => p.id !== payload.old.id));
+        } else {
+          fetchPosts();
         }
       })
-      // On écoute les commentaires pour rafraîchir la liste sous le post
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, () => {
-        fetchPosts(); 
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, () => fetchPosts())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comment_replies' }, () => fetchPosts())
       .subscribe();
 
     return () => supabase.removeChannel(channel);
@@ -79,89 +73,68 @@ export const PostProvider = ({ children }) => {
 
   const toggleLike = async (postId, isLiked) => {
     if (!user) return;
-
-    // Mise à jour optimiste (UI uniquement)
-    setPosts(current => current.map(p => {
-      if (p.id === postId) {
-        return {
-          ...p,
-          isLikedByMe: !isLiked,
-          likes_count: isLiked ? Math.max(0, p.likes_count - 1) : p.likes_count + 1
-        };
-      }
-      return p;
-    }));
+    setPosts(current => current.map(p => p.id === postId ? {
+      ...p,
+      isLikedByMe: !isLiked,
+      likes_count: isLiked ? Math.max(0, p.likes_count - 1) : p.likes_count + 1
+    } : p));
 
     try {
       if (isLiked) {
-        // Suppression explicite
-        const { error } = await supabase
-          .from('likes')
-          .delete()
-          .eq('post_id', postId)
-          .eq('user_id', user.id);
-        
-        if (error) throw error;
+        await supabase.from('likes').delete().match({ post_id: postId, user_id: user.id });
       } else {
-        // Insertion
-        const { error } = await supabase
-          .from('likes')
-          .insert({ post_id: postId, user_id: user.id });
-        
-        if (error) throw error;
+        await supabase.from('likes').insert({ post_id: postId, user_id: user.id });
       }
     } catch (err) {
-      console.error("Erreur toggleLike:", err.message);
-      fetchPosts(); // Rollback en cas d'erreur
+      console.error(err);
+      fetchPosts();
     }
   };
 
-  const createPost = async (content, image_url = null) => {
-    const { error } = await supabase.from('posts').insert({
-      user_id: user.id,
-      content,
-      image_url
-    });
-    if (error) throw error;
-  };
+  const createPost = async (content, image_url = null) => 
+    await supabase.from('posts').insert({ user_id: user.id, content, image_url });
 
-  const deletePost = async (postId) => {
-    const { error } = await supabase.from('posts').delete().eq('id', postId);
-    if (error) throw error;
-  };
+  const updatePost = async (postId, content) => 
+    await supabase.from('posts').update({ content }).eq('id', postId);
 
-  const addComment = async (postId, content) => {
-    const { error } = await supabase.from('comments').insert({
-      post_id: postId,
-      user_id: user.id,
-      content
-    });
-    if (error) throw error;
-  };
+  const deletePost = async (postId) => 
+    await supabase.from('posts').delete().eq('id', postId);
 
-  const updatePost = async (postId, content) => {
-    const { error } = await supabase.from('posts').update({ content }).eq('id', postId);
-    if (error) throw error;
-  };
+  const addComment = async (postId, content) => 
+    await supabase.from('comments').insert({ post_id: postId, user_id: user.id, content });
+
+  const updateComment = async (id, content) => 
+    await supabase.from('comments').update({ content }).eq('id', id);
+
+  const deleteComment = async (id) => 
+    await supabase.from('comments').delete().eq('id', id);
+
+  const addReply = async (commentId, content) => 
+    await supabase.from('comment_replies').insert({ comment_id: commentId, user_id: user.id, content });
+
+  const updateReply = async (id, content) => 
+    await supabase.from('comment_replies').update({ content }).eq('id', id);
+
+  const deleteReply = async (id) => 
+    await supabase.from('comment_replies').delete().eq('id', id);
 
   return (
     <PostContext.Provider value={{ 
-      posts, 
-      loading, 
-      toggleLike, 
-      createPost, 
-      deletePost, 
-      updatePost, 
-      addComment,
-      fetchPosts 
+      posts, loading, toggleLike, createPost, updatePost, deletePost, 
+      addComment, updateComment, deleteComment, 
+      addReply, updateReply, deleteReply, fetchPosts 
     }}>
       {children}
     </PostContext.Provider>
   );
 };
 
+// --- HOOKS D'ACCÈS ---
 export const usePostsContext = () => {
   const context = useContext(PostContext);
   if (!context) throw new Error("usePostsContext doit être utilisé dans PostProvider");
   return context;
 };
+
+// Alias pour éviter les erreurs d'import dans Home.jsx
+export const usePosts = () => usePostsContext();
