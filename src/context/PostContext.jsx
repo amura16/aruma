@@ -9,7 +9,7 @@ export const PostProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
-  // --- 1. RÉCUPÉRATION DES POSTS ---
+  // --- 1. CHARGEMENT DES POSTS ---
   const fetchPosts = useCallback(async () => {
     try {
       const { data, error } = await supabase
@@ -33,7 +33,6 @@ export const PostProvider = ({ children }) => {
 
       const formatted = data.map(post => ({
         ...post,
-        // Conversion en String pour comparer les UUID de manière sûre
         isLikedByMe: post.likes?.some(l => String(l.user_id) === String(user?.id)) || false,
         likes_count: post.likes_count ?? 0,
         comments_count: post.comments_count ?? 0,
@@ -70,12 +69,16 @@ export const PostProvider = ({ children }) => {
     return () => supabase.removeChannel(channel);
   }, [user, fetchPosts]);
 
-  // --- 3. ACTIONS LIKES (CORRIGÉ POUR UUID) ---
+  // --- 3. ACTIONS LIKES (SÉCURISÉ) ---
   const toggleLike = async (postId, isLiked) => {
     if (!user) return;
 
-    // Mise à jour optimiste UI
-    setPosts(current => current.map(p => p.id === postId ? {
+    // Éviter les problèmes de référence : on capture les IDs
+    const currentUserId = user.id;
+    const currentPostId = postId;
+
+    // Mise à jour optimiste UI (on change l'état avant l'appel API)
+    setPosts(current => current.map(p => p.id === currentPostId ? {
       ...p,
       isLikedByMe: !isLiked,
       likes_count: isLiked ? Math.max(0, p.likes_count - 1) : p.likes_count + 1
@@ -83,34 +86,36 @@ export const PostProvider = ({ children }) => {
 
     try {
       if (isLiked) {
-        // UNLIKE : Suppression basée sur le couple post_id (UUID) et user_id (UUID)
+        // UNLIKE
         const { error } = await supabase
           .from('likes')
           .delete()
-          .match({ 
-            post_id: postId, 
-            user_id: user.id 
-          });
+          .match({ post_id: currentPostId, user_id: currentUserId });
 
         if (error) throw error;
       } else {
-        // LIKE : Insertion
+        // LIKE
         const { error } = await supabase
           .from('likes')
-          .insert({ 
-            post_id: postId, 
-            user_id: user.id 
-          });
+          .insert({ post_id: currentPostId, user_id: currentUserId });
         
-        if (error) throw error;
+        if (error) {
+          // Si l'erreur est "duplicate key", c'est que le like existe déjà, on ignore
+          if (error.code === '23505') {
+            console.warn("Like déjà existant en base.");
+          } else {
+            throw error;
+          }
+        }
       }
     } catch (err) {
-      console.error("Erreur toggleLike:", err.message);
-      fetchPosts(); // Rollback en cas d'échec
+      console.error("Erreur détaillée toggleLike:", err);
+      // Rollback : On remet les posts à jour via la DB car l'action a échoué
+      fetchPosts(); 
     }
   };
 
-  // --- 4. ACTIONS POSTS ---
+  // --- 4. AUTRES ACTIONS ---
   const createPost = async (content, image_url = null) => 
     await supabase.from('posts').insert({ user_id: user.id, content, image_url });
 
@@ -120,7 +125,6 @@ export const PostProvider = ({ children }) => {
   const deletePost = async (postId) => 
     await supabase.from('posts').delete().eq('id', postId);
 
-  // --- 5. ACTIONS COMMENTAIRES (CRUD) ---
   const addComment = async (postId, content) => 
     await supabase.from('comments').insert({ post_id: postId, user_id: user.id, content });
 
@@ -130,7 +134,6 @@ export const PostProvider = ({ children }) => {
   const deleteComment = async (commentId) => 
     await supabase.from('comments').delete().eq('id', commentId);
 
-  // --- 6. ACTIONS RÉPONSES (CRUD) ---
   const addReply = async (commentId, content) => 
     await supabase.from('comment_replies').insert({ comment_id: commentId, user_id: user.id, content });
 
@@ -142,11 +145,9 @@ export const PostProvider = ({ children }) => {
 
   return (
     <PostContext.Provider value={{ 
-      posts, loading, toggleLike, 
-      createPost, updatePost, deletePost, 
+      posts, loading, toggleLike, createPost, updatePost, deletePost, 
       addComment, updateComment, deleteComment, 
-      addReply, updateReply, deleteReply, 
-      fetchPosts 
+      addReply, updateReply, deleteReply, fetchPosts 
     }}>
       {children}
     </PostContext.Provider>
@@ -159,5 +160,4 @@ export const usePostsContext = () => {
   return context;
 };
 
-// Alias pour compatibilité
 export const usePosts = () => usePostsContext();
