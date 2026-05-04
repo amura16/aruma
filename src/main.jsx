@@ -8,6 +8,7 @@ import { ChatProvider } from './context/ChatContext'
 import { FriendsProvider } from './context/FriendsContext.jsx'
 import { ThemeProvider } from './context/ThemeContext'
 import { BadgeProvider } from './context/NotificationBadgeContext.jsx'
+import { CommentProvider } from './context/CommentContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -15,11 +16,13 @@ createRoot(document.getElementById('root')).render(
       <AuthProvider>
         <BadgeProvider>
           <PostProvider>
-            <ChatProvider>
-              <FriendsProvider>
-                <App />
-              </FriendsProvider>
-            </ChatProvider>
+            <CommentProvider>
+              <ChatProvider>
+                <FriendsProvider>
+                  <App />
+                </FriendsProvider>
+              </ChatProvider>
+            </CommentProvider>
           </PostProvider>
         </BadgeProvider>
       </AuthProvider>

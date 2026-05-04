@@ -1,61 +1,62 @@
 import React, { useState } from 'react';
-import { Heart, MessageCircle, Share2, MoreHorizontal, Trash2, Edit3, Send } from 'lucide-react';
+import { Heart, MessageCircle, Share2, MoreHorizontal, Trash2, Edit3, Send, CornerDownRight } from 'lucide-react';
 import { usePostsContext } from '../../context/PostContext';
+import { useComments } from '../../context/CommentContext'; // Nouvel import
 import { useAuth } from '../../context/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
-// On destructure directement les props envoyées par {...post} depuis Home.jsx
 const PostCard = ({ 
-  id, 
-  content, 
-  image_url, 
-  created_at, 
-  author, 
-  likes_count, 
-  comments_count, 
-  isLikedByMe, 
-  user_id,
-  comments = [] // On récupère les commentaires s'ils sont chargés
+  id, content, image_url, created_at, author, likes_count, comments_count, isLikedByMe, user_id,
+  comments = [] 
 }) => {
-  const { toggleLike, deletePost, addComment } = usePostsContext();
+  // Actions liées au Post
+  const { toggleLike, deletePost } = usePostsContext();
+  
+  // Actions liées aux Commentaires isolées
+  const { 
+    addComment, 
+    deleteComment, 
+    addReply, 
+    deleteReply,
+    updateComment, // Disponible si tu en as besoin pour l'édition
+    updateReply 
+  } = useComments();
+
   const { user } = useAuth();
   
   const [isLiking, setIsLiking] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
+  const [replyTo, setReplyTo] = useState(null);
 
-  // Gestion du Like avec protection
+  // --- LOGIQUE POST ---
   const handleLike = async () => {
     if (isLiking || !user) return;
     setIsLiking(true);
-    try {
-      await toggleLike(id, isLikedByMe);
-    } finally {
-      setIsLiking(false);
-    }
+    try { await toggleLike(id, isLikedByMe); } finally { setIsLiking(false); }
   };
 
-  const handleDelete = async () => {
+  const handleDeletePost = async () => {
     if (window.confirm("Supprimer ce post ?")) {
-      try {
-        await deletePost(id);
-      } catch (err) {
-        alert("Erreur lors de la suppression");
-      }
+      try { await deletePost(id); } catch (err) { alert("Erreur suppression"); }
     }
   };
 
+  // --- LOGIQUE COMMENTAIRES (Utilise useComments) ---
   const handleAddComment = async (e) => {
     e.preventDefault();
     if (!commentText.trim()) return;
     try {
-      await addComment(id, commentText);
+      if (replyTo) {
+        await addReply(replyTo.id, commentText);
+        setReplyTo(null);
+      } else {
+        await addComment(id, commentText);
+      }
       setCommentText("");
-    } catch (err) {
-      alert("Erreur commentaire");
-    }
+    } catch (err) { alert("Erreur lors de l'envoi"); }
   };
 
   const dateFormatted = created_at 
@@ -63,41 +64,27 @@ const PostCard = ({
     : "";
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl mb-4 shadow-sm transition hover:shadow-md">
-      {/* Header : Infos auteur */}
+    <div className="bg-white border border-gray-200 rounded-xl mb-4 shadow-sm">
+      {/* Header */}
       <div className="p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <img 
             src={author?.avatar_url || `https://ui-avatars.com/api/?name=${author?.username || 'User'}`} 
-            alt="avatar" 
-            className="w-10 h-10 rounded-full object-cover border border-gray-100"
+            className="w-10 h-10 rounded-full object-cover border" alt="avatar"
           />
           <div>
-            <h4 className="font-bold text-gray-900 text-[15px] hover:underline cursor-pointer">
-              {author?.username || "Utilisateur anonyme"}
-            </h4>
+            <h4 className="font-bold text-gray-900 text-[15px]">{author?.username || "Anonyme"}</h4>
             <p className="text-xs text-gray-500">{dateFormatted}</p>
           </div>
         </div>
-
         {user?.id === user_id && (
           <div className="relative">
-            <button 
-              onClick={() => setShowMenu(!showMenu)}
-              className="p-2 hover:bg-gray-100 rounded-full text-gray-500"
-            >
+            <button onClick={() => setShowMenu(!showMenu)} className="p-2 hover:bg-gray-100 rounded-full text-gray-500">
               <MoreHorizontal size={18} />
             </button>
-            
             {showMenu && (
-              <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-100 rounded-lg shadow-xl z-10 py-1">
-                <button className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                  <Edit3 size={14} /> Modifier
-                </button>
-                <button 
-                  onClick={handleDelete}
-                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                >
+              <div className="absolute right-0 mt-2 w-40 bg-white border rounded-lg shadow-xl z-10 py-1">
+                <button onClick={handleDeletePost} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50">
                   <Trash2 size={14} /> Supprimer
                 </button>
               </div>
@@ -106,106 +93,92 @@ const PostCard = ({
         )}
       </div>
 
-      {/* Corps : Texte et Image */}
+      {/* Contenu */}
       <div className="px-4 pb-3">
-        <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">{content}</p>
+        <p className="text-gray-800 whitespace-pre-wrap">{content}</p>
       </div>
-
       {image_url && (
-        <div className="border-y border-gray-50 bg-gray-50">
-          <img 
-            src={image_url} 
-            alt="Post content" 
-            className="w-full max-h-[500px] object-contain mx-auto"
-            loading="lazy"
-          />
+        <div className="border-y bg-gray-50">
+          <img src={image_url} alt="Post" className="w-full max-h-[500px] object-contain mx-auto" />
         </div>
       )}
 
-      {/* Stats */}
-      <div className="px-4 py-2 flex justify-between items-center text-[13px] text-gray-500 border-b border-gray-50">
-        <div className="flex items-center gap-1">
-          {likes_count > 0 && (
-            <div className="flex items-center">
-              <span className="flex items-center justify-center w-4 h-4 bg-blue-500 rounded-full mr-1">
-                <Heart size={10} className="fill-white text-white" />
-              </span>
-              <span>{likes_count}</span>
-            </div>
-          )}
-        </div>
-        <div 
-          onClick={() => setShowComments(!showComments)}
-          className="hover:underline cursor-pointer"
-        >
+      {/* Stats & Actions */}
+      <div className="px-4 py-2 flex justify-between text-[13px] text-gray-500 border-b border-gray-50">
+        <span>{likes_count > 0 ? `${likes_count} J'aime` : ""}</span>
+        <span onClick={() => setShowComments(!showComments)} className="hover:underline cursor-pointer">
           {comments_count > 0 ? `${comments_count} commentaires` : "0 commentaire"}
-        </div>
+        </span>
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center p-1 px-2 gap-1">
-        <button 
-          onClick={handleLike}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg transition-colors font-semibold text-sm ${
-            isLikedByMe 
-              ? 'text-blue-600 bg-blue-50 hover:bg-blue-100' 
-              : 'text-gray-600 hover:bg-gray-100'
-          }`}
-        >
-          <Heart size={20} className={isLikedByMe ? "fill-current" : ""} />
-          <span>J'aime</span>
+      <div className="flex items-center p-1 px-2">
+        <button onClick={handleLike} className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-semibold text-sm ${isLikedByMe ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:bg-gray-100'}`}>
+          <Heart size={20} className={isLikedByMe ? "fill-current" : ""} /> J'aime
         </button>
-
-        <button 
-          onClick={() => setShowComments(!showComments)}
-          className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-semibold text-sm"
-        >
-          <MessageCircle size={20} />
-          <span>Commenter</span>
-        </button>
-
-        <button className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-semibold text-sm">
-          <Share2 size={20} />
-          <span>Partager</span>
+        <button onClick={() => setShowComments(!showComments)} className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-semibold text-sm">
+          <MessageCircle size={20} /> Commenter
         </button>
       </div>
 
-      {/* Section Commentaires (Apparaît au clic sur Commenter) */}
+      {/* SECTION COMMENTAIRES */}
       {showComments && (
-        <div className="px-4 pb-4 border-t border-gray-100 pt-3">
-          {/* Formulaire ajout commentaire */}
+        <div className="px-4 pb-4 border-t pt-3 bg-gray-50/50">
           <form onSubmit={handleAddComment} className="flex gap-2 mb-4">
-            <img 
-              src={user?.avatar_url || `https://ui-avatars.com/api/?name=${user?.username}`} 
-              className="w-8 h-8 rounded-full" 
-              alt="me"
-            />
+            <img src={user?.avatar_url || `https://ui-avatars.com/api/?name=${user?.username}`} className="w-8 h-8 rounded-full" alt="me" />
             <div className="flex-1 relative">
               <input 
-                type="text"
-                placeholder="Écrivez un commentaire..."
+                type="text" 
+                placeholder={replyTo ? `Répondre à ${replyTo.username}...` : "Écrivez un commentaire..."}
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
-                className="w-full bg-gray-100 border-none rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full bg-white border border-gray-200 rounded-full px-4 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
               />
-              <button type="submit" className="absolute right-2 top-1.5 text-blue-600 hover:bg-blue-50 p-1 rounded-full">
-                <Send size={16} />
-              </button>
+              {replyTo && (
+                <button onClick={() => setReplyTo(null)} className="absolute right-10 top-2 text-xs text-gray-400 hover:text-red-500">Annuler</button>
+              )}
+              <button type="submit" className="absolute right-2 top-1.5 text-blue-600 p-1"><Send size={16} /></button>
             </div>
           </form>
 
-          {/* Liste des commentaires */}
-          <div className="space-y-3">
+          <div className="space-y-4">
             {comments.map((comment) => (
-              <div key={comment.id} className="flex gap-2">
-                <img 
-                  src={comment.author?.avatar_url || `https://ui-avatars.com/api/?name=${comment.author?.username}`} 
-                  className="w-8 h-8 rounded-full" 
-                  alt="author"
-                />
-                <div className="bg-gray-100 rounded-2xl px-3 py-2 max-w-[90%]">
-                  <p className="text-xs font-bold text-gray-900">{comment.author?.username}</p>
-                  <p className="text-sm text-gray-800">{comment.content}</p>
+              <div key={comment.id} className="space-y-2">
+                <div className="flex gap-2 group">
+                  <img src={comment.author?.avatar_url || `https://ui-avatars.com/api/?name=${comment.author?.username}`} className="w-8 h-8 rounded-full" alt="author" />
+                  <div className="flex-1">
+                    <div className="bg-gray-100 rounded-2xl px-3 py-2 inline-block max-w-full relative">
+                      <p className="text-xs font-bold">{comment.author?.username}</p>
+                      <p className="text-sm">{comment.content}</p>
+                      
+                      {user?.id === comment.user_id && (
+                        <button onClick={() => deleteComment(comment.id)} className="absolute -right-8 top-2 opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500">
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex gap-3 ml-2 mt-1 text-xs font-bold text-gray-500">
+                      <button onClick={() => setReplyTo({id: comment.id, username: comment.author?.username})} className="hover:underline">Répondre</button>
+                      <span>{formatDistanceToNow(new Date(comment.created_at), { locale: fr })}</span>
+                    </div>
+
+                    {comment.replies && comment.replies.map(reply => (
+                      <div key={reply.id} className="flex gap-2 mt-3 ml-4">
+                        <CornerDownRight size={16} className="text-gray-300" />
+                        <img src={reply.author?.avatar_url || `https://ui-avatars.com/api/?name=${reply.author?.username}`} className="w-6 h-6 rounded-full" alt="reply-author" />
+                        <div className="flex-1">
+                          <div className="bg-white border border-gray-100 rounded-2xl px-3 py-1.5 inline-block group relative">
+                            <p className="text-[11px] font-bold">{reply.author?.username}</p>
+                            <p className="text-sm">{reply.content}</p>
+                            {user?.id === reply.user_id && (
+                              <button onClick={() => deleteReply(reply.id)} className="absolute -right-7 top-1 opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500">
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             ))}
