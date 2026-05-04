@@ -1,19 +1,32 @@
 import React, { useState } from 'react';
-import { Heart, MessageCircle, Share2, MoreHorizontal, Trash2, Edit3 } from 'lucide-react';
+import { Heart, MessageCircle, Share2, MoreHorizontal, Trash2, Edit3, Send } from 'lucide-react';
 import { usePostsContext } from '../../context/PostContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
-const PostCard = ({ post }) => {
-  const { id, content, image_url, created_at, author, likes_count, comments_count, isLikedByMe, user_id } = post;
-  const { toggleLike, deletePost } = usePostsContext();
+// On destructure directement les props envoyées par {...post} depuis Home.jsx
+const PostCard = ({ 
+  id, 
+  content, 
+  image_url, 
+  created_at, 
+  author, 
+  likes_count, 
+  comments_count, 
+  isLikedByMe, 
+  user_id,
+  comments = [] // On récupère les commentaires s'ils sont chargés
+}) => {
+  const { toggleLike, deletePost, addComment } = usePostsContext();
   const { user } = useAuth();
   
   const [isLiking, setIsLiking] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [commentText, setCommentText] = useState("");
 
-  // Gestion du Like avec protection contre le double-clic
+  // Gestion du Like avec protection
   const handleLike = async () => {
     if (isLiking || !user) return;
     setIsLiking(true);
@@ -34,8 +47,20 @@ const PostCard = ({ post }) => {
     }
   };
 
-  // Formatage de la date (ex: "il y a 5 min")
-  const dateFormatted = formatDistanceToNow(new Date(created_at), { addSuffix: true, locale: fr });
+  const handleAddComment = async (e) => {
+    e.preventDefault();
+    if (!commentText.trim()) return;
+    try {
+      await addComment(id, commentText);
+      setCommentText("");
+    } catch (err) {
+      alert("Erreur commentaire");
+    }
+  };
+
+  const dateFormatted = created_at 
+    ? formatDistanceToNow(new Date(created_at), { addSuffix: true, locale: fr })
+    : "";
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl mb-4 shadow-sm transition hover:shadow-md">
@@ -55,7 +80,6 @@ const PostCard = ({ post }) => {
           </div>
         </div>
 
-        {/* Menu d'options (uniquement si l'utilisateur est l'auteur) */}
         {user?.id === user_id && (
           <div className="relative">
             <button 
@@ -98,7 +122,7 @@ const PostCard = ({ post }) => {
         </div>
       )}
 
-      {/* Stats : Likes et Commentaires */}
+      {/* Stats */}
       <div className="px-4 py-2 flex justify-between items-center text-[13px] text-gray-500 border-b border-gray-50">
         <div className="flex items-center gap-1">
           {likes_count > 0 && (
@@ -110,12 +134,15 @@ const PostCard = ({ post }) => {
             </div>
           )}
         </div>
-        <div className="hover:underline cursor-pointer">
+        <div 
+          onClick={() => setShowComments(!showComments)}
+          className="hover:underline cursor-pointer"
+        >
           {comments_count > 0 ? `${comments_count} commentaires` : "0 commentaire"}
         </div>
       </div>
 
-      {/* Actions : Boutons J'aime / Commenter */}
+      {/* Actions */}
       <div className="flex items-center p-1 px-2 gap-1">
         <button 
           onClick={handleLike}
@@ -129,7 +156,10 @@ const PostCard = ({ post }) => {
           <span>J'aime</span>
         </button>
 
-        <button className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-semibold text-sm">
+        <button 
+          onClick={() => setShowComments(!showComments)}
+          className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-semibold text-sm"
+        >
           <MessageCircle size={20} />
           <span>Commenter</span>
         </button>
@@ -139,6 +169,49 @@ const PostCard = ({ post }) => {
           <span>Partager</span>
         </button>
       </div>
+
+      {/* Section Commentaires (Apparaît au clic sur Commenter) */}
+      {showComments && (
+        <div className="px-4 pb-4 border-t border-gray-100 pt-3">
+          {/* Formulaire ajout commentaire */}
+          <form onSubmit={handleAddComment} className="flex gap-2 mb-4">
+            <img 
+              src={user?.avatar_url || `https://ui-avatars.com/api/?name=${user?.username}`} 
+              className="w-8 h-8 rounded-full" 
+              alt="me"
+            />
+            <div className="flex-1 relative">
+              <input 
+                type="text"
+                placeholder="Écrivez un commentaire..."
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                className="w-full bg-gray-100 border-none rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+              <button type="submit" className="absolute right-2 top-1.5 text-blue-600 hover:bg-blue-50 p-1 rounded-full">
+                <Send size={16} />
+              </button>
+            </div>
+          </form>
+
+          {/* Liste des commentaires */}
+          <div className="space-y-3">
+            {comments.map((comment) => (
+              <div key={comment.id} className="flex gap-2">
+                <img 
+                  src={comment.author?.avatar_url || `https://ui-avatars.com/api/?name=${comment.author?.username}`} 
+                  className="w-8 h-8 rounded-full" 
+                  alt="author"
+                />
+                <div className="bg-gray-100 rounded-2xl px-3 py-2 max-w-[90%]">
+                  <p className="text-xs font-bold text-gray-900">{comment.author?.username}</p>
+                  <p className="text-sm text-gray-800">{comment.content}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

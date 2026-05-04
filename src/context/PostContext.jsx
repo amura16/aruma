@@ -10,8 +10,6 @@ export const PostProvider = ({ children }) => {
   const { user } = useAuth();
 
   // --- 1. CHARGEMENT DES POSTS ---
-  // On récupère likes_count et comments_count (gérés par SQL)
-  // On joint 'likes' pour savoir si l'utilisateur actuel a liké
   const fetchPosts = useCallback(async () => {
     try {
       const { data, error } = await supabase
@@ -20,9 +18,11 @@ export const PostProvider = ({ children }) => {
           *,
           author:user_id (id, username, avatar_url),
           likes (user_id),
-          parent_post:parent_id (
-            id, content, image_url, 
-            author:user_id (username)
+          comments (
+            id, 
+            content, 
+            created_at, 
+            author:user_id (username, avatar_url)
           )
         `)
         .order('created_at', { ascending: false });
@@ -31,45 +31,45 @@ export const PostProvider = ({ children }) => {
 
       const formatted = data.map(post => ({
         ...post,
-        // Détermine l'état initial du bouton J'aime
         isLikedByMe: post.likes?.some(l => String(l.user_id) === String(user?.id)) || false,
         likes_count: post.likes_count ?? 0,
-        comments_count: post.comments_count ?? 0
+        comments_count: post.comments_count ?? 0,
+        comments: post.comments || []
       }));
 
       setPosts(formatted);
     } catch (err) {
       console.error("Erreur fetchPosts:", err.message);
     } finally {
+      setPosts(current => current); // Force refresh UI
       setLoading(false);
     }
   }, [user?.id]);
 
-  // --- 2. REALTIME (ABONNEMENT UNIQUE) ---
+  // --- 2. REALTIME ---
   useEffect(() => {
     if (!user) return;
     fetchPosts();
 
-    // On écoute les changements sur 'posts' pour les compteurs et 'likes' pour l'état du bouton
     const channel = supabase.channel('db-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, (payload) => {
         if (payload.eventType === 'INSERT') {
-          fetchPosts(); // Nouveau post : on recharge pour avoir les jointures
+          fetchPosts(); // On fetch pour récupérer les jointures de l'auteur
         } else if (payload.eventType === 'UPDATE') {
-          // Mise à jour ciblée : évite le re-render total
+          // IMPORTANT: On ne met à jour que les compteurs venant de la DB
           setPosts(current => current.map(p => 
-            p.id === payload.new.id ? { ...p, ...payload.new } : p
+            p.id === payload.new.id 
+              ? { ...p, likes_count: payload.new.likes_count, comments_count: payload.new.comments_count, content: payload.new.content } 
+              : p
           ));
         } else if (payload.eventType === 'DELETE') {
           setPosts(current => current.filter(p => p.id !== payload.old.id));
         }
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'likes' }, () => {
-        // Un like/unlike a eu lieu : on rafraîchit pour recalculer isLikedByMe
-        fetchPosts();
+      // On écoute les commentaires pour rafraîchir la liste sous le post
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, () => {
+        fetchPosts(); 
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, () => fetchPosts())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'comment_replies' }, () => fetchPosts())
       .subscribe();
 
     return () => supabase.removeChannel(channel);
@@ -77,17 +77,16 @@ export const PostProvider = ({ children }) => {
 
   // --- 3. ACTIONS ---
 
-  // Logique de Like Optimiste
   const toggleLike = async (postId, isLiked) => {
     if (!user) return;
 
-    // Mise à jour immédiate de l'UI (Optimistic Update)
+    // Mise à jour optimiste (UI uniquement)
     setPosts(current => current.map(p => {
       if (p.id === postId) {
         return {
           ...p,
           isLikedByMe: !isLiked,
-          likes_count: isLiked ? p.likes_count - 1 : p.likes_count + 1
+          likes_count: isLiked ? Math.max(0, p.likes_count - 1) : p.likes_count + 1
         };
       }
       return p;
@@ -95,13 +94,25 @@ export const PostProvider = ({ children }) => {
 
     try {
       if (isLiked) {
-        await supabase.from('likes').delete().match({ post_id: postId, user_id: user.id });
+        // Suppression explicite
+        const { error } = await supabase
+          .from('likes')
+          .delete()
+          .eq('post_id', postId)
+          .eq('user_id', user.id);
+        
+        if (error) throw error;
       } else {
-        await supabase.from('likes').insert({ post_id: postId, user_id: user.id });
+        // Insertion
+        const { error } = await supabase
+          .from('likes')
+          .insert({ post_id: postId, user_id: user.id });
+        
+        if (error) throw error;
       }
     } catch (err) {
-      console.error("Erreur toggleLike:", err);
-      fetchPosts(); // Rollback en cas d'échec
+      console.error("Erreur toggleLike:", err.message);
+      fetchPosts(); // Rollback en cas d'erreur
     }
   };
 
@@ -119,17 +130,17 @@ export const PostProvider = ({ children }) => {
     if (error) throw error;
   };
 
-  const updatePost = async (postId, content) => {
-    const { error } = await supabase.from('posts').update({ content }).eq('id', postId);
-    if (error) throw error;
-  };
-
   const addComment = async (postId, content) => {
     const { error } = await supabase.from('comments').insert({
       post_id: postId,
       user_id: user.id,
       content
     });
+    if (error) throw error;
+  };
+
+  const updatePost = async (postId, content) => {
+    const { error } = await supabase.from('posts').update({ content }).eq('id', postId);
     if (error) throw error;
   };
 
