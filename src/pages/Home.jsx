@@ -8,6 +8,9 @@ import SidebarRight from '../components/Home/SidebarRight';
 import CreatePost from '../components/Home/CreatePost';
 
 const Home = () => {
+  // On récupère les posts et l'état de chargement depuis le context
+  // Grâce au Realtime dans PostContext, cette liste se mettra à jour 
+  // automatiquement lors d'un partage (insertion d'un post avec parent_id)
   const { posts, loading: postsLoading } = usePostsContext();
   const { user, loading: authLoading } = useAuth();
 
@@ -29,16 +32,17 @@ const Home = () => {
       <NavBar />
 
       <main className="max-w-[1600px] mx-auto grid grid-cols-1 md:grid-cols-12 gap-4 px-4">
-        {/* Colonne de Gauche */}
+        {/* Colonne de Gauche : Profil, Raccourcis */}
         <SidebarLeft />
 
         {/* Flux Central (Flux de Posts) */}
         <section className="col-span-1 md:col-span-8 lg:col-span-6 py-4">
+          {/* Zone de création de post */}
           <CreatePost userAvatar={user?.avatar_url} />
 
           <div className="space-y-4 mt-4">
             {postsLoading && posts.length === 0 ? (
-              // Squelette de chargement pendant le premier fetch
+              // Squelette de chargement (Skeleton UI) pendant le premier fetch
               <div className="space-y-4">
                 {[1, 2, 3].map((n) => (
                   <div key={n} className="bg-white p-4 rounded-xl shadow-sm animate-pulse">
@@ -53,12 +57,21 @@ const Home = () => {
             ) : (
               <>
                 {posts.length > 0 ? (
+                  /* 
+                    On boucle sur les posts. 
+                    Si c'est un partage, c'est un post "normal" avec un parent_id,
+                    il sera donc rendu ici par PostCard.
+                  */
                   posts.map((post) => (
                     <PostCard key={post.id} {...post} />
                   ))
                 ) : (
+                  /* État vide */
                   <div className="bg-white p-12 rounded-xl shadow-sm text-center border border-gray-200">
-                    <p className="text-gray-500">Aucune publication à afficher.</p>
+                    <div className="flex flex-col items-center gap-2">
+                       <p className="text-gray-500 font-medium">Aucune publication à afficher.</p>
+                       <p className="text-sm text-gray-400">Soyez le premier à partager quelque chose !</p>
+                    </div>
                   </div>
                 )}
               </>
@@ -66,7 +79,7 @@ const Home = () => {
           </div>
         </section>
 
-        {/* Colonne de Droite */}
+        {/* Colonne de Droite : Contacts, Suggestions */}
         <SidebarRight />
       </main>
     </div>
