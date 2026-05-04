@@ -1,97 +1,107 @@
 import { usePostsContext } from '../context/PostContext';
 import { useAuth } from '../context/AuthContext';
 
+/**
+ * Hook personnalisé usePosts
+ * Sert de façade pour accéder aux données et actions des posts
+ * tout en vérifiant l'état de l'utilisateur.
+ */
 export const usePosts = () => {
   const {
     posts,
     loading,
     error,
-    createPost, // Utilisation directe du nom défini dans le contexte
+    createPost,
     updatePost,
     deletePost,
     toggleLike,
     addComment,
-    updateComment,
-    deleteComment,
-    addReply,
-    updateReply,
-    deleteReply
+    // Note : Ajoute ici d'autres fonctions (updateComment, etc.) 
+    // si tu les as définies dans ton PostContext
   } = usePostsContext();
 
   const { user } = useAuth();
 
-  // --- LOGIQUE POSTS ---
+  // --- ACTIONS SUR LES POSTS ---
+
+  /**
+   * Crée un nouveau post
+   * @param {string} content - Le texte du post
+   * @param {string|null} image_url - L'URL de l'image (optionnel)
+   */
   const handleCreatePost = async (content, image_url = null) => {
-    if (!user) return;
+    if (!user) {
+      console.warn("L'utilisateur doit être connecté pour publier.");
+      return;
+    }
+    if (!content.trim()) return;
+
     try {
-      // On passe un objet structuré comme attendu par le contexte
-      await createPost({ content, image_url });
+      await createPost(content, image_url);
     } catch (err) {
-      console.error("Erreur hook createPost:", err);
+      console.error("Erreur hook handleCreatePost:", err);
     }
   };
 
+  /**
+   * Gère le système de Like/Unlike
+   * @param {string} postId - L'ID du post
+   * @param {boolean} isLikedByMe - État actuel du like
+   */
   const handleLikePost = async (postId, isLikedByMe) => {
     if (!user) return;
-    await toggleLike(postId, isLikedByMe);
-  };
-
-  // --- LOGIQUE COMMENTAIRES ---
-  const handleAddComment = async (postId, content) => {
-    if (!user || !content.trim()) return;
-    await addComment(postId, content);
-  };
-
-  const handleUpdateComment = async (commentId, content) => {
-    if (!user || !content.trim()) return;
-    await updateComment(commentId, content);
-  };
-
-  const handleDeleteComment = async (commentId) => {
-    if (!user) return;
-    if (window.confirm("Supprimer ce commentaire ?")) {
-      await deleteComment(commentId);
+    try {
+      await toggleLike(postId, isLikedByMe);
+    } catch (err) {
+      console.error("Erreur hook handleLikePost:", err);
     }
   };
 
-  // --- LOGIQUE RÉPONSES (REPLIES) ---
-  const handleAddReply = async (commentId, content) => {
-    if (!user || !content.trim()) return;
-    // Le temps réel est assuré par l'abonnement dans PostContext
-    await addReply(commentId, content);
-  };
-
-  const handleUpdateReply = async (replyId, content) => {
-    if (!user || !content.trim()) return;
-    await updateReply(replyId, content);
-  };
-
-  const handleDeleteReply = async (replyId) => {
+  /**
+   * Supprime un post après confirmation
+   * @param {string} postId 
+   */
+  const handleDeletePost = async (postId) => {
     if (!user) return;
-    // Pas besoin de confirm ici si tu l'as déjà mis dans le composant UI
-    await deleteReply(replyId);
+    if (window.confirm("Voulez-vous vraiment supprimer ce post ?")) {
+      try {
+        await deletePost(postId);
+      } catch (err) {
+        console.error("Erreur hook handleDeletePost:", err);
+      }
+    }
   };
 
+  // --- ACTIONS SUR LES COMMENTAIRES ---
+
+  /**
+   * Ajoute un commentaire à un post
+   * @param {string} postId 
+   * @param {string} content 
+   */
+  const handleAddComment = async (postId, content) => {
+    if (!user || !content.trim()) return;
+    try {
+      await addComment(postId, content);
+    } catch (err) {
+      console.error("Erreur hook handleAddComment:", err);
+    }
+  };
+
+  // --- RETOUR DU HOOK ---
   return {
-    // États
+    // États (venant du contexte)
     posts,
     loading,
     error,
 
-    // Actions sur les Posts
+    // Actions (encapsulées avec vérification utilisateur)
     createPost: handleCreatePost,
     likePost: handleLikePost,
+    deletePost: handleDeletePost,
     updatePost,
-    deletePost,
-
-    // Actions sur les Commentaires
     addComment: handleAddComment,
-    updateComment: handleUpdateComment,
-    deleteComment: handleDeleteComment,
-
-    // Actions sur les Réponses (Real-time)
-    addReply: handleAddReply,
-    updateReply: handleUpdateReply,
-    deleteReply: handleDeleteReply
   };
 };
+
+export default usePosts;

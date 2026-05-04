@@ -26,7 +26,7 @@ export const useConversations = (userId) => {
 
     if (!userId) return;
 
-    // Real-time subscription for messages to update conversation list
+    // Real-time subscription for messages and new conversations
     const channel = supabase
       .channel(`user-conversations-${userId}`)
       .on(
@@ -36,12 +36,17 @@ export const useConversations = (userId) => {
           schema: 'public',
           table: 'messages'
         },
-        async (payload) => {
-          // If a new message is inserted, we refresh or update the specific conversation
-          // To keep it simple and robust, we just refetch the list
-          // But we could also do manual state updates for better performance
-          fetchConversations();
-        }
+        () => fetchConversations()
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'conversation_participants',
+          filter: `user_id=eq.${userId}`
+        },
+        () => fetchConversations()
       )
       .subscribe();
 

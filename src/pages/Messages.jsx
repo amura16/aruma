@@ -28,7 +28,7 @@ const Messages = () => {
   // Handle URL search params (e.g., ?userId=...)
   useEffect(() => {
     const targetUserId = searchParams.get('userId');
-    if (targetUserId && conversations.length > 0 && user) {
+    if (targetUserId && user && !loading) {
       const existing = conversations.find(c => c.friend.id === targetUserId);
 
       if (existing) {
@@ -110,6 +110,11 @@ const Messages = () => {
   // Display either the real selected conversation or the temporary one
   const displayConversation = tempConversation || selectedConversation;
 
+  // Include the temporary conversation in the list for better UX
+  const listConversations = tempConversation 
+    ? [tempConversation, ...conversations.filter(c => c.id !== tempConversation.id)]
+    : conversations;
+
   return (
     <div className="h-screen flex flex-col bg-white overflow-hidden">
       <NavBar />
@@ -118,7 +123,7 @@ const Messages = () => {
         {/* Sidebar / Conversation List */}
         <div className={`${displayConversation ? 'hidden md:block' : 'block'} w-full md:w-auto h-full`}>
           <ConversationList
-            conversations={conversations}
+            conversations={listConversations}
             loading={loading && conversations.length === 0}
             activeId={displayConversation?.id}
             onSelect={handleSelectConversation}

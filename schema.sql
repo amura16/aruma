@@ -134,13 +134,34 @@ CREATE POLICY "Users can insert own profile" ON profiles FOR INSERT WITH CHECK (
 CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
 
 -- Conversations (Seuls les participants peuvent voir leurs conversations)
+DROP POLICY IF EXISTS "Users can view their conversations" ON conversations;
 CREATE POLICY "Users can view their conversations" ON conversations FOR SELECT 
   USING (EXISTS (SELECT 1 FROM conversation_participants WHERE conversation_id = id AND user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Users can create conversations" ON conversations;
+CREATE POLICY "Users can create conversations" ON conversations FOR INSERT TO authenticated WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Users can update their conversations" ON conversations;
+CREATE POLICY "Users can update their conversations" ON conversations FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM conversation_participants WHERE conversation_id = id AND user_id = auth.uid()));
+
+-- Conversation Participants
+DROP POLICY IF EXISTS "Users can view participations" ON conversation_participants;
+CREATE POLICY "Users can view participations" ON conversation_participants FOR SELECT TO authenticated
+  USING (true);
+
+DROP POLICY IF EXISTS "Users can insert participations" ON conversation_participants;
+CREATE POLICY "Users can insert participations" ON conversation_participants FOR INSERT TO authenticated 
+  WITH CHECK (true);
+
 -- Messages
-CREATE POLICY "Users can view messages in their conversations" ON messages FOR SELECT 
+DROP POLICY IF EXISTS "Users can view messages in their conversations" ON messages;
+CREATE POLICY "Users can view messages in their conversations" ON messages FOR SELECT TO authenticated
   USING (EXISTS (SELECT 1 FROM conversation_participants WHERE conversation_id = messages.conversation_id AND user_id = auth.uid()));
-CREATE POLICY "Users can send messages" ON messages FOR INSERT WITH CHECK (auth.uid() = sender_id);
+
+DROP POLICY IF EXISTS "Users can send messages" ON messages;
+CREATE POLICY "Users can send messages" ON messages FOR INSERT TO authenticated 
+  WITH CHECK (auth.uid() = sender_id);
 
 -- Posts
 CREATE POLICY "Posts are viewable by everyone" ON posts FOR SELECT USING (true);
