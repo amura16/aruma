@@ -47,7 +47,7 @@ export const PostProvider = ({ children }) => {
     }
   }, [user?.id]);
 
-  // --- 2. REALTIME ---
+  // --- 2. REALTIME (MISE À JOUR UNIQUEMENT ICI) ---
   useEffect(() => {
     if (!user) return;
     fetchPosts();
@@ -62,6 +62,7 @@ export const PostProvider = ({ children }) => {
           fetchPosts();
         }
       })
+      // Ajout de l'écoute sur les tables liées pour le temps réel
       .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, () => fetchPosts())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'comment_replies' }, () => fetchPosts())
       .subscribe();
@@ -69,7 +70,7 @@ export const PostProvider = ({ children }) => {
     return () => supabase.removeChannel(channel);
   }, [user, fetchPosts]);
 
-  // --- 3. ACTIONS LIKES (SÉCURISÉ) ---
+  // --- 3. ACTIONS LIKES (RETOUR AU CODE SOURCE STRICT) ---
   const toggleLike = async (postId, isLiked) => {
     if (!user) return;
 
