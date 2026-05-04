@@ -9,16 +9,16 @@ export const ChatProvider = ({ children }) => {
   const { user } = useAuth();
   const [activeConvId, setActiveConvId] = useState(null);
 
-  const { 
-    conversations, 
-    loading: loadingConversations, 
-    refresh: refreshConversations 
+  const {
+    conversations,
+    loading: loadingConversations,
+    refresh: refreshConversations
   } = useConversations(user?.id);
 
-  const { 
-    messages, 
-    loading: loadingMessages, 
-    sendMessage: hookSendMessage 
+  const {
+    messages,
+    loading: loadingMessages,
+    sendMessage: hookSendMessage
   } = useMessages(activeConvId, user?.id);
 
   // Total unread count for global notifications
@@ -37,11 +37,11 @@ export const ChatProvider = ({ children }) => {
   };
 
   return (
-    <ChatContext.Provider value={{ 
-      conversations, 
-      selectedConversation, 
-      messages, 
-      setSelectedConvId: setActiveConvId, 
+    <ChatContext.Provider value={{
+      conversations,
+      selectedConversation,
+      messages,
+      setSelectedConvId: setActiveConvId,
       sendMessage,
       loading: loadingConversations || loadingMessages,
       totalUnreadCount,
