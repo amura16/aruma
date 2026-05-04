@@ -9,7 +9,7 @@ export const PostProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
-  // --- 1. CHARGEMENT DES POSTS ---
+  // --- 1. CHARGEMENT DES POSTS (Modifié pour inclure le post parent) ---
   const fetchPosts = useCallback(async () => {
     try {
       const { data, error } = await supabase
@@ -17,6 +17,10 @@ export const PostProvider = ({ children }) => {
         .select(`
           *,
           author:user_id (id, username, avatar_url),
+          parent_post:parent_id (
+            id, content, image_url, created_at,
+            author:user_id (username, avatar_url)
+          ),
           likes (user_id),
           comments (
             id, user_id, content, created_at,
@@ -47,7 +51,7 @@ export const PostProvider = ({ children }) => {
     }
   }, [user?.id]);
 
-  // --- 2. REALTIME (MISE À JOUR UNIQUEMENT ICI) ---
+  // --- 2. REALTIME (STRICTEMENT CONSERVÉ) ---
   useEffect(() => {
     if (!user) return;
     fetchPosts();
@@ -62,7 +66,6 @@ export const PostProvider = ({ children }) => {
           fetchPosts();
         }
       })
-      // Ajout de l'écoute sur les tables liées pour le temps réel
       .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, () => fetchPosts())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'comment_replies' }, () => fetchPosts())
       .subscribe();
@@ -70,15 +73,13 @@ export const PostProvider = ({ children }) => {
     return () => supabase.removeChannel(channel);
   }, [user, fetchPosts]);
 
-  // --- 3. ACTIONS LIKES (RETOUR AU CODE SOURCE STRICT) ---
+  // --- 3. ACTIONS LIKES (STRICTEMENT CONSERVÉ) ---
   const toggleLike = async (postId, isLiked) => {
     if (!user) return;
 
-    // Éviter les problèmes de référence : on capture les IDs
     const currentUserId = user.id;
     const currentPostId = postId;
 
-    // Mise à jour optimiste UI (on change l'état avant l'appel API)
     setPosts(current => current.map(p => p.id === currentPostId ? {
       ...p,
       isLikedByMe: !isLiked,
@@ -87,7 +88,6 @@ export const PostProvider = ({ children }) => {
 
     try {
       if (isLiked) {
-        // UNLIKE
         const { error } = await supabase
           .from('likes')
           .delete()
@@ -95,30 +95,27 @@ export const PostProvider = ({ children }) => {
 
         if (error) throw error;
       } else {
-        // LIKE
         const { error } = await supabase
           .from('likes')
           .insert({ post_id: currentPostId, user_id: currentUserId });
         
-        if (error) {
-          // Si l'erreur est "duplicate key", c'est que le like existe déjà, on ignore
-          if (error.code === '23505') {
-            console.warn("Like déjà existant en base.");
-          } else {
-            throw error;
-          }
-        }
+        if (error && error.code !== '23505') throw error;
       }
     } catch (err) {
-      console.error("Erreur détaillée toggleLike:", err);
-      // Rollback : On remet les posts à jour via la DB car l'action a échoué
+      console.error("Erreur toggleLike:", err);
       fetchPosts(); 
     }
   };
 
-  // --- 4. AUTRES ACTIONS ---
-  const createPost = async (content, image_url = null) => 
-    await supabase.from('posts').insert({ user_id: user.id, content, image_url });
+  // --- 4. AUTRES ACTIONS (createPost adapté pour le partage) ---
+  const createPost = async (postData) => {
+    // Gère soit un string (ancien usage), soit un objet (nouveau usage pour le partage)
+    const payload = typeof postData === 'string' 
+      ? { user_id: user.id, content: postData }
+      : { user_id: user.id, ...postData };
+
+    return await supabase.from('posts').insert(payload);
+  };
 
   const updatePost = async (postId, content) => 
     await supabase.from('posts').update({ content }).eq('id', postId);
