@@ -9,7 +9,7 @@ export const PostProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
-  // --- 1. CHARGEMENT DES DONNÉES ---
+  // --- 1. RÉCUPÉRATION DES POSTS ---
   const fetchPosts = useCallback(async () => {
     try {
       const { data, error } = await supabase
@@ -33,6 +33,7 @@ export const PostProvider = ({ children }) => {
 
       const formatted = data.map(post => ({
         ...post,
+        // Conversion en String pour comparer les UUID de manière sûre
         isLikedByMe: post.likes?.some(l => String(l.user_id) === String(user?.id)) || false,
         likes_count: post.likes_count ?? 0,
         comments_count: post.comments_count ?? 0,
@@ -52,7 +53,7 @@ export const PostProvider = ({ children }) => {
     if (!user) return;
     fetchPosts();
 
-    const channel = supabase.channel('db-changes')
+    const channel = supabase.channel('db-all-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, (payload) => {
         if (payload.eventType === 'UPDATE') {
           setPosts(current => current.map(p => 
@@ -69,10 +70,11 @@ export const PostProvider = ({ children }) => {
     return () => supabase.removeChannel(channel);
   }, [user, fetchPosts]);
 
-  // --- 3. ACTIONS ---
-
+  // --- 3. ACTIONS LIKES (CORRIGÉ POUR UUID) ---
   const toggleLike = async (postId, isLiked) => {
     if (!user) return;
+
+    // Mise à jour optimiste UI
     setPosts(current => current.map(p => p.id === postId ? {
       ...p,
       isLikedByMe: !isLiked,
@@ -81,16 +83,34 @@ export const PostProvider = ({ children }) => {
 
     try {
       if (isLiked) {
-        await supabase.from('likes').delete().match({ post_id: postId, user_id: user.id });
+        // UNLIKE : Suppression basée sur le couple post_id (UUID) et user_id (UUID)
+        const { error } = await supabase
+          .from('likes')
+          .delete()
+          .match({ 
+            post_id: postId, 
+            user_id: user.id 
+          });
+
+        if (error) throw error;
       } else {
-        await supabase.from('likes').insert({ post_id: postId, user_id: user.id });
+        // LIKE : Insertion
+        const { error } = await supabase
+          .from('likes')
+          .insert({ 
+            post_id: postId, 
+            user_id: user.id 
+          });
+        
+        if (error) throw error;
       }
     } catch (err) {
-      console.error(err);
-      fetchPosts();
+      console.error("Erreur toggleLike:", err.message);
+      fetchPosts(); // Rollback en cas d'échec
     }
   };
 
+  // --- 4. ACTIONS POSTS ---
   const createPost = async (content, image_url = null) => 
     await supabase.from('posts').insert({ user_id: user.id, content, image_url });
 
@@ -100,41 +120,44 @@ export const PostProvider = ({ children }) => {
   const deletePost = async (postId) => 
     await supabase.from('posts').delete().eq('id', postId);
 
+  // --- 5. ACTIONS COMMENTAIRES (CRUD) ---
   const addComment = async (postId, content) => 
     await supabase.from('comments').insert({ post_id: postId, user_id: user.id, content });
 
-  const updateComment = async (id, content) => 
-    await supabase.from('comments').update({ content }).eq('id', id);
+  const updateComment = async (commentId, content) => 
+    await supabase.from('comments').update({ content }).eq('id', commentId);
 
-  const deleteComment = async (id) => 
-    await supabase.from('comments').delete().eq('id', id);
+  const deleteComment = async (commentId) => 
+    await supabase.from('comments').delete().eq('id', commentId);
 
+  // --- 6. ACTIONS RÉPONSES (CRUD) ---
   const addReply = async (commentId, content) => 
     await supabase.from('comment_replies').insert({ comment_id: commentId, user_id: user.id, content });
 
-  const updateReply = async (id, content) => 
-    await supabase.from('comment_replies').update({ content }).eq('id', id);
+  const updateReply = async (replyId, content) => 
+    await supabase.from('comment_replies').update({ content }).eq('id', replyId);
 
-  const deleteReply = async (id) => 
-    await supabase.from('comment_replies').delete().eq('id', id);
+  const deleteReply = async (replyId) => 
+    await supabase.from('comment_replies').delete().eq('id', replyId);
 
   return (
     <PostContext.Provider value={{ 
-      posts, loading, toggleLike, createPost, updatePost, deletePost, 
+      posts, loading, toggleLike, 
+      createPost, updatePost, deletePost, 
       addComment, updateComment, deleteComment, 
-      addReply, updateReply, deleteReply, fetchPosts 
+      addReply, updateReply, deleteReply, 
+      fetchPosts 
     }}>
       {children}
     </PostContext.Provider>
   );
 };
 
-// --- HOOKS D'ACCÈS ---
 export const usePostsContext = () => {
   const context = useContext(PostContext);
   if (!context) throw new Error("usePostsContext doit être utilisé dans PostProvider");
   return context;
 };
 
-// Alias pour éviter les erreurs d'import dans Home.jsx
+// Alias pour compatibilité
 export const usePosts = () => usePostsContext();
