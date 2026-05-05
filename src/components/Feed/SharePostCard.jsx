@@ -145,4 +145,4 @@ const SharePostCard = ({ originalPost, onClose }) => {
     );
 };
 
-export default SharePostCard;
+export default SharePostCard; 
