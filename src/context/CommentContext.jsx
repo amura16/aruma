@@ -57,9 +57,11 @@ export const CommentProvider = ({ children }) => {
 
   const deleteComment = async (id) => await supabase.from('comments').delete().eq('id', id);
   const deleteReply = async (id) => await supabase.from('comment_replies').delete().eq('id', id);
+  const updateComment = async (id, content) => await supabase.from('comments').update({ content }).eq('id', id);
+  const updateReply = async (id, content) => await supabase.from('comment_replies').update({ content }).eq('id', id);
 
   return (
-    <CommentContext.Provider value={{ addComment, addReply, deleteComment, deleteReply }}>
+    <CommentContext.Provider value={{ addComment, addReply, deleteComment, deleteReply, updateComment, updateReply }}>
       {children}
     </CommentContext.Provider>
   );

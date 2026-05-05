@@ -54,7 +54,12 @@ const CreatePostModal = ({ userAvatar, closeModal }) => {
         mediaUrl = urlData.publicUrl;
       }
 
-      await createPost(content, mediaUrl); // Appel au contexte
+      // On envoie un objet structuré car createPost s'attend à un objet pour gérer les médias
+      await createPost({ 
+        content: content, 
+        image_url: mediaUrl 
+      });
+      
       closeModal();
     } catch (err) {
       setErrorMsg("Erreur lors de la publication.");

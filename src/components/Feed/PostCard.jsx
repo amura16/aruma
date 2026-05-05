@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   Heart, 
   MessageCircle, 
@@ -6,7 +6,8 @@ import {
   MoreHorizontal, 
   Trash2, 
   Send, 
-  CornerDownRight 
+  CornerDownRight,
+  Edit2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { usePostsContext } from '../../context/PostContext';
@@ -26,8 +27,8 @@ const PostCard = (post) => {
     comments = [] 
   } = post;
 
-  const { toggleLike, deletePost } = usePostsContext();
-  const { addComment, deleteComment, addReply, deleteReply } = useComments();
+  const { toggleLike, deletePost, updatePost } = usePostsContext();
+  const { addComment, deleteComment, addReply, deleteReply, updateComment, updateReply } = useComments();
   const { user } = useAuth();
   const navigate = useNavigate();
   
@@ -36,6 +37,18 @@ const PostCard = (post) => {
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [replyTo, setReplyTo] = useState(null);
+
+  // États pour l'édition
+  const [isEditingPost, setIsEditingPost] = useState(false);
+  const [editPostContent, setEditPostContent] = useState(content);
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [editCommentContent, setEditCommentContent] = useState("");
+  const [editingReplyId, setEditingReplyId] = useState(null);
+  const [editReplyContent, setEditReplyContent] = useState("");
+  
+  // Menu actif pour commentaires/réponses
+  const [activeMenuId, setActiveMenuId] = useState(null);
+  const touchTimer = useRef(null);
 
   const { isShareModalOpen, openShareModal, closeShareModal } = useShare();
 
@@ -57,6 +70,47 @@ const PostCard = (post) => {
         console.error(err);
       }
     }
+  };
+
+  const handleUpdatePost = async () => {
+    if (!editPostContent.trim()) return;
+    try {
+      await updatePost(id, editPostContent);
+      setIsEditingPost(false);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleUpdateComment = async (commentId) => {
+    if (!editCommentContent.trim()) return;
+    try {
+      await updateComment(commentId, editCommentContent);
+      setEditingCommentId(null);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleUpdateReply = async (replyId) => {
+    if (!editReplyContent.trim()) return;
+    try {
+      await updateReply(replyId, editReplyContent);
+      setEditingReplyId(null);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Gestion du Long Press pour mobile
+  const handleTouchStart = (id, type) => {
+    touchTimer.current = setTimeout(() => {
+      setActiveMenuId(`${type}-${id}`);
+    }, 600); // 600ms pour déclencher le menu
+  };
+
+  const handleTouchEnd = () => {
+    if (touchTimer.current) clearTimeout(touchTimer.current);
   };
 
   const handleAddComment = async (e) => {
@@ -116,12 +170,18 @@ const PostCard = (post) => {
               <MoreHorizontal size={18} />
             </button>
             {showMenu && (
-              <div className="absolute right-0 mt-2 w-40 bg-white border rounded-lg shadow-xl z-10 py-1">
+              <div className="absolute right-0 mt-2 w-48 bg-white border rounded-xl shadow-2xl z-20 py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
                 <button 
-                  onClick={handleDeletePost} 
-                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 text-left"
+                  onClick={() => { setIsEditingPost(true); setShowMenu(false); }} 
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                 >
-                  <Trash2 size={14} /> Supprimer
+                  <Edit2 size={16} /> Modifier
+                </button>
+                <button 
+                  onClick={() => { handleDeletePost(); setShowMenu(false); }} 
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  <Trash2 size={16} /> Supprimer
                 </button>
               </div>
             )}
@@ -131,7 +191,22 @@ const PostCard = (post) => {
 
       {/* CONTENU DU POST ACTUEL */}
       <div className="px-4 pb-3">
-        <p className="text-gray-800 whitespace-pre-wrap">{content}</p>
+        {isEditingPost ? (
+          <div className="space-y-2">
+            <textarea 
+              value={editPostContent}
+              onChange={(e) => setEditPostContent(e.target.value)}
+              className="w-full border border-blue-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-100 outline-none min-h-[100px]"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setIsEditingPost(false)} className="px-3 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded-md">Annuler</button>
+              <button onClick={handleUpdatePost} className="px-3 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700">Enregistrer</button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-gray-800 whitespace-pre-wrap">{content}</p>
+        )}
       </div>
 
       {/* --- AFFICHAGE DU POST PARTAGÉ --- */}
@@ -267,22 +342,66 @@ const PostCard = (post) => {
                     onClick={() => navigate(`/user/${comment.author?.id}`)}
                   />
                   <div className="flex-1">
-                    <div className="bg-gray-100 rounded-2xl px-3 py-2 inline-block max-w-full relative">
+                    <div 
+                      className="bg-gray-100 rounded-2xl px-3 py-2 inline-block max-w-full relative group"
+                      onTouchStart={() => handleTouchStart(comment.id, 'comment')}
+                      onTouchEnd={handleTouchEnd}
+                    >
                       <p 
                         className="text-xs font-bold text-gray-900 cursor-pointer hover:underline"
                         onClick={() => navigate(`/user/${comment.author?.id}`)}
                       >
                         {comment.author?.username}
                       </p>
-                      <p className="text-sm text-gray-800">{comment.content}</p>
                       
+                      {editingCommentId === comment.id ? (
+                        <div className="mt-1 space-y-1">
+                          <input 
+                            value={editCommentContent}
+                            onChange={(e) => setEditCommentContent(e.target.value)}
+                            className="bg-white border rounded px-2 py-1 text-sm w-full outline-none focus:ring-1 focus:ring-blue-400"
+                            autoFocus
+                            onKeyDown={(e) => e.key === 'Enter' && handleUpdateComment(comment.id)}
+                          />
+                          <div className="flex gap-2">
+                            <button onClick={() => handleUpdateComment(comment.id)} className="text-[10px] text-blue-600 font-bold">Enregistrer</button>
+                            <button onClick={() => setEditingCommentId(null)} className="text-[10px] text-gray-400 font-bold">Annuler</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-800">{comment.content}</p>
+                      )}
+                      
+                      {/* Menu 3 points (Desktop/Tablet) et Long Press (Mobile) */}
                       {user?.id === comment.user_id && (
-                        <button 
-                          onClick={() => deleteComment(comment.id)} 
-                          className="absolute -right-8 top-2 opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-all"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        <div className="absolute -right-8 top-1">
+                          <button 
+                            onClick={() => setActiveMenuId(activeMenuId === `comment-${comment.id}` ? null : `comment-${comment.id}`)}
+                            className="p-1 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <MoreHorizontal size={14} />
+                          </button>
+                          
+                          {activeMenuId === `comment-${comment.id}` && (
+                            <>
+                              <div className="fixed inset-0 z-10" onClick={() => setActiveMenuId(null)}></div>
+                              <div className="absolute left-0 mt-1 w-32 bg-white border rounded-lg shadow-xl z-20 py-1 text-xs">
+                                <button 
+                                  onClick={() => { setEditingCommentId(comment.id); setEditCommentContent(comment.content); setActiveMenuId(null); }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-gray-700"
+                                >
+                                  <Edit2 size={12} /> Modifier
+                                </button>
+                                <button 
+                                  onClick={() => { deleteComment(comment.id); setActiveMenuId(null); }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-red-50 text-red-600"
+                                >
+                                  <Trash2 size={12} /> Supprimer
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
                       )}
                     </div>
                     <div className="flex gap-3 ml-2 mt-1 text-xs font-bold text-gray-500">
@@ -305,21 +424,65 @@ const PostCard = (post) => {
                           onClick={() => navigate(`/user/${reply.author?.id}`)}
                         />
                         <div className="flex-1">
-                          <div className="bg-white border border-gray-100 rounded-2xl px-3 py-1.5 inline-block group relative">
+                          <div 
+                            className="bg-white border border-gray-100 rounded-2xl px-3 py-1.5 inline-block group relative"
+                            onTouchStart={() => handleTouchStart(reply.id, 'reply')}
+                            onTouchEnd={handleTouchEnd}
+                          >
                             <p 
                               className="text-[11px] font-bold text-gray-900 cursor-pointer hover:underline"
                               onClick={() => navigate(`/user/${reply.author?.id}`)}
                             >
                               {reply.author?.username}
                             </p>
-                            <p className="text-sm text-gray-800">{reply.content}</p>
+                            
+                            {editingReplyId === reply.id ? (
+                              <div className="mt-1 space-y-1">
+                                <input 
+                                  value={editReplyContent}
+                                  onChange={(e) => setEditReplyContent(e.target.value)}
+                                  className="bg-white border rounded px-2 py-0.5 text-xs w-full outline-none focus:ring-1 focus:ring-blue-400"
+                                  autoFocus
+                                  onKeyDown={(e) => e.key === 'Enter' && handleUpdateReply(reply.id)}
+                                />
+                                <div className="flex gap-2">
+                                  <button onClick={() => handleUpdateReply(reply.id)} className="text-[9px] text-blue-600 font-bold">Enregistrer</button>
+                                  <button onClick={() => setEditingReplyId(null)} className="text-[9px] text-gray-400 font-bold">Annuler</button>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-800">{reply.content}</p>
+                            )}
+
                             {user?.id === reply.user_id && (
-                              <button 
-                                onClick={() => deleteReply(reply.id)} 
-                                className="absolute -right-7 top-1 opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-all"
-                              >
-                                <Trash2 size={12} />
-                              </button>
+                              <div className="absolute -right-7 top-1">
+                                <button 
+                                  onClick={() => setActiveMenuId(activeMenuId === `reply-${reply.id}` ? null : `reply-${reply.id}`)}
+                                  className="p-1 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <MoreHorizontal size={12} />
+                                </button>
+                                
+                                {activeMenuId === `reply-${reply.id}` && (
+                                  <>
+                                    <div className="fixed inset-0 z-10" onClick={() => setActiveMenuId(null)}></div>
+                                    <div className="absolute left-0 mt-1 w-28 bg-white border rounded-lg shadow-xl z-20 py-1 text-[10px]">
+                                      <button 
+                                        onClick={() => { setEditingReplyId(reply.id); setEditReplyContent(reply.content); setActiveMenuId(null); }}
+                                        className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 text-gray-700"
+                                      >
+                                        <Edit2 size={10} /> Modifier
+                                      </button>
+                                      <button 
+                                        onClick={() => { deleteReply(reply.id); setActiveMenuId(null); }}
+                                        className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-red-50 text-red-600"
+                                      >
+                                        <Trash2 size={10} /> Supprimer
+                                      </button>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
                             )}
                           </div>
                         </div>
