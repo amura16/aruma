@@ -16,4 +16,4 @@ const useLike = ({ post , user}) => {
     return like;
 }
 
-export default useLike;
+export default useLike; 
