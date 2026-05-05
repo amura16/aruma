@@ -1,161 +1,147 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import supabase from '../../services/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { usePostsContext } from '../../context/PostContext';
+import { formatTime } from '../../utils/formatTime';
 
-const PostContext = createContext(null);
+const SharePostCard = ({ originalPost, onClose }) => {
+    const { user: currentUser } = useAuth();
+    const { createPost } = usePostsContext();
 
-export const PostProvider = ({ children }) => {
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+    const [shareContent, setShareContent] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
 
-  // --- 1. CHARGEMENT DES POSTS (Modifié pour inclure le post parent) ---
-  const fetchPosts = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('posts')
-        .select(`
-          *,
-          author:user_id (id, username, avatar_url),
-          parent_post:parent_id (
-            id, content, image_url, created_at,
-            author:user_id (username, avatar_url)
-          ),
-          likes (user_id),
-          comments (
-            id, user_id, content, created_at,
-            author:user_id (username, avatar_url),
-            replies:comment_replies (
-              id, user_id, content, created_at,
-              author:user_id (username, avatar_url)
-            )
-          )
-        `)
-        .order('created_at', { ascending: false });
+    // --- LOGIQUE DE SOUMISSION ---
+    const handleShareSubmit = async (e) => {
+        e.preventDefault();
 
-      if (error) throw error;
-
-      const formatted = data.map(post => ({
-        ...post,
-        isLikedByMe: post.likes?.some(l => String(l.user_id) === String(user?.id)) || false,
-        likes_count: post.likes_count ?? 0,
-        comments_count: post.comments_count ?? 0,
-        comments: post.comments || []
-      }));
-
-      setPosts(formatted);
-    } catch (err) {
-      console.error("Erreur fetchPosts:", err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
-
-  // --- 2. REALTIME (STRICTEMENT CONSERVÉ) ---
-  useEffect(() => {
-    if (!user) return;
-    fetchPosts();
-
-    const channel = supabase.channel('db-all-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, (payload) => {
-        if (payload.eventType === 'UPDATE') {
-          setPosts(current => current.map(p => 
-            p.id === payload.new.id ? { ...p, ...payload.new } : p
-          ));
-        } else {
-          fetchPosts();
+        // On lance le partage même si shareContent est vide (comportement Facebook)
+        setIsLoading(true);
+        try {
+            await createPost({
+                content: shareContent.trim() || null, // Autorise le contenu nul
+                parent_id: originalPost.id,           // Lie au post d'origine
+            });
+            onClose();
+        } catch (error) {
+            console.error("Erreur lors du partage :", error);
+        } finally {
+            setIsLoading(false);
         }
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, () => fetchPosts())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'comment_replies' }, () => fetchPosts())
-      .subscribe();
+    };
 
-    return () => supabase.removeChannel(channel);
-  }, [user, fetchPosts]);
+    return createPortal(
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
 
-  // --- 3. ACTIONS LIKES (STRICTEMENT CONSERVÉ) ---
-  const toggleLike = async (postId, isLiked) => {
-    if (!user) return;
+            {/* OVERLAY FLOU */}
+            <div
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+                onClick={onClose}
+            />
 
-    const currentUserId = user.id;
-    const currentPostId = postId;
+            {/* MODAL DE PARTAGE */}
+            <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
 
-    setPosts(current => current.map(p => p.id === currentPostId ? {
-      ...p,
-      isLikedByMe: !isLiked,
-      likes_count: isLiked ? Math.max(0, p.likes_count - 1) : p.likes_count + 1
-    } : p));
+                {/* HEADER */}
+                <div className="p-4 border-b flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <img
+                            src={currentUser?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${currentUser?.username}`}
+                            className="w-10 h-10 rounded-full object-cover border shadow-sm"
+                            alt="Mon profil"
+                        />
+                        <div>
+                            <h3 className="font-bold text-gray-900 text-sm">Partager la publication</h3>
+                            <p className="text-xs text-blue-600 font-medium">
+                                Public • Sur votre profil
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="p-2 hover:bg-gray-100 rounded-full text-gray-400 transition-colors"
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
 
-    try {
-      if (isLiked) {
-        const { error } = await supabase
-          .from('likes')
-          .delete()
-          .match({ post_id: currentPostId, user_id: currentUserId });
+                {/* BODY */}
+                <div className="p-4 overflow-y-auto custom-scrollbar">
+                    {/* ZONE DE TEXTE (Optionnelle) */}
+                    <textarea
+                        className="w-full border-none focus:ring-0 text-lg placeholder-gray-400 min-h-[80px] resize-none mb-4"
+                        placeholder="Dites-en plus sur ce partage... (optionnel)"
+                        value={shareContent}
+                        onChange={(e) => setShareContent(e.target.value)}
+                        autoFocus
+                    />
 
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('likes')
-          .insert({ post_id: currentPostId, user_id: currentUserId });
-        
-        if (error && error.code !== '23505') throw error;
-      }
-    } catch (err) {
-      console.error("Erreur toggleLike:", err);
-      fetchPosts(); 
-    }
-  };
+                    {/* APERÇU DU POST ORIGINAL (Encapsulé) */}
+                    <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50 select-none pointer-events-none">
+                        <div className="p-3 flex items-center gap-2 border-b border-gray-100 bg-white/80">
+                            <img
+                                src={originalPost.author?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${originalPost.author?.username}`}
+                                className="w-6 h-6 rounded-full"
+                                alt=""
+                            />
+                            <div className="flex flex-col">
+                                <span className="font-bold text-[12px] text-gray-800 leading-none">
+                                    {originalPost.author?.username}
+                                </span>
+                                <span className="text-[10px] text-gray-400">
+                                    {formatTime(originalPost.created_at)}
+                                </span>
+                            </div>
+                        </div>
 
-  // --- 4. AUTRES ACTIONS (createPost adapté pour le partage) ---
-  const createPost = async (postData) => {
-    // Gère soit un string (ancien usage), soit un objet (nouveau usage pour le partage)
-    const payload = typeof postData === 'string' 
-      ? { user_id: user.id, content: postData }
-      : { user_id: user.id, ...postData };
+                        <div className="p-3 bg-white/50">
+                            <p className="text-sm text-gray-700 line-clamp-3 leading-snug">
+                                {originalPost.content}
+                            </p>
+                        </div>
 
-    return await supabase.from('posts').insert(payload);
-  };
+                        {originalPost.image_url && (
+                            <div className="bg-gray-100 flex justify-center border-t border-gray-100">
+                                <img
+                                    src={originalPost.image_url}
+                                    className="max-h-48 w-full object-contain"
+                                    alt="Aperçu média"
+                                />
+                            </div>
+                        )}
+                    </div>
+                </div>
 
-  const updatePost = async (postId, content) => 
-    await supabase.from('posts').update({ content }).eq('id', postId);
+                {/* FOOTER */}
+                <div className="p-4 bg-gray-50 border-t flex justify-end items-center gap-4">
+                    <button
+                        onClick={onClose}
+                        className="text-gray-500 font-medium text-sm hover:underline"
+                    >
+                        Annuler
+                    </button>
 
-  const deletePost = async (postId) => 
-    await supabase.from('posts').delete().eq('id', postId);
-
-  const addComment = async (postId, content) => 
-    await supabase.from('comments').insert({ post_id: postId, user_id: user.id, content });
-
-  const updateComment = async (commentId, content) => 
-    await supabase.from('comments').update({ content }).eq('id', commentId);
-
-  const deleteComment = async (commentId) => 
-    await supabase.from('comments').delete().eq('id', commentId);
-
-  const addReply = async (commentId, content) => 
-    await supabase.from('comment_replies').insert({ comment_id: commentId, user_id: user.id, content });
-
-  const updateReply = async (replyId, content) => 
-    await supabase.from('comment_replies').update({ content }).eq('id', replyId);
-
-  const deleteReply = async (replyId) => 
-    await supabase.from('comment_replies').delete().eq('id', replyId);
-
-  return (
-    <PostContext.Provider value={{ 
-      posts, loading, toggleLike, createPost, updatePost, deletePost, 
-      addComment, updateComment, deleteComment, 
-      addReply, updateReply, deleteReply, fetchPosts 
-    }}>
-      {children}
-    </PostContext.Provider>
-  );
+                    <button
+                        onClick={handleShareSubmit}
+                        disabled={isLoading}
+                        className={`
+              flex items-center gap-2 bg-blue-600 hover:bg-blue-700 
+              text-white px-8 py-2.5 rounded-full font-bold transition-all shadow-lg
+              ${isLoading ? 'opacity-70 cursor-not-allowed shadow-none' : 'shadow-blue-200'}
+            `}
+                    >
+                        {isLoading ? (
+                            <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                            <Send size={18} />
+                        )}
+                        {isLoading ? 'Publication...' : 'Partager'}
+                    </button>
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
 };
 
-export const usePostsContext = () => {
-  const context = useContext(PostContext);
-  if (!context) throw new Error("usePostsContext doit être utilisé dans PostProvider");
-  return context;
-};
-
-export const usePosts = () => usePostsContext();
+export default SharePostCard; 
