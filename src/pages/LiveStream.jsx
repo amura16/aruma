@@ -39,7 +39,8 @@ const LiveStream = () => {
             streamer: {
               name: `${currentLive.user.firstname} ${currentLive.user.lastname}`,
               avatar: currentLive.user.avatar_url
-            }
+            },
+            peerId: currentLive.peer_id
           });
         }
 
@@ -77,13 +78,13 @@ const LiveStream = () => {
       <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
         {/* Partie Gauche : Vidéo et Suggestions */}
         <main className="flex-1 flex flex-col overflow-y-auto custom-scrollbar bg-white">
-          {/* Zone Vidéo - Hauteur fixée à 450px sur mobile pour laisser Jitsi respirer */}
+          {/* Zone Vidéo - Hauteur fixée à 450px sur mobile pour laisser le lecteur respirer */}
           <div className="h-[450px] lg:h-auto lg:flex-1 bg-black shrink-0 relative">
             {streamerInfo ? (
               <LivePlayer
                 streamTitle={streamerInfo.title}
                 streamer={streamerInfo.streamer}
-                roomName={streamerInfo.roomName}
+                peerId={streamerInfo.peerId}
               />
             ) : (
               <div className="w-full h-full bg-black flex items-center justify-center text-white p-10 text-center">

@@ -3,12 +3,15 @@ import NavBar from '../components/Layout/Navbar';
 import VideoSidebar from '../components/Video/VideoSidebar';
 import VideoCard from '../components/Video/VideoCard';
 import LivePlayer from '../components/Live/LivePlayer';
+import LiveStreamer from '../components/Live/LiveStreamer';
+import { Video, X } from 'lucide-react';
 import supabase from '../services/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 
 const VideoFeed = () => {
   const [activeLives, setActiveLives] = useState([]);
   const [currentFilter, setCurrentFilter] = useState("all");
+  const [showLiveCreator, setShowLiveCreator] = useState(false);
   const navigate = useNavigate();
 
   // Données pour les vidéos classiques (Reels/Suggérées)
@@ -67,6 +70,32 @@ const VideoFeed = () => {
         <main className="flex-1 overflow-y-auto pt-4 px-4 custom-scrollbar">
           <div className="max-w-[700px] mx-auto pb-20">
 
+            {/* Bouton pour lancer un direct */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-red-600">
+                  <Video size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900">Vidéos en direct</h3>
+                  <p className="text-xs text-gray-500">Diffusez votre contenu en direct maintenant</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowLiveCreator(true)}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition active:scale-95"
+              >
+                Lancer un direct
+              </button>
+            </div>
+
+            {/* Modal de création de live */}
+            {showLiveCreator && (
+              <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+                <LiveStreamer onStreamEnd={() => setShowLiveCreator(false)} />
+              </div>
+            )}
+
             {/* SECTION LIVES (Visible si 'all' ou 'live') */}
             {(currentFilter === "all" || currentFilter === "live") && activeLives.length > 0 && (
               <div className="mb-8 space-y-6">
@@ -77,11 +106,12 @@ const VideoFeed = () => {
 
                 {activeLives.map((live) => (
                   <div key={live.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    {/* Intégration du Player Jitsi en temps réel */}
+                    {/* Intégration du Player P2P en temps réel */}
                     <div className="aspect-video w-full bg-black relative">
                       <LivePlayer
-                        roomName={live.room_name}
+                        streamTitle={live.room_name}
                         streamer={live.user}
+                        peerId={live.peer_id}
                       />
                       <button
                         onClick={() => navigate(`/live?room=${live.room_name}`)}
