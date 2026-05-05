@@ -8,6 +8,7 @@ import {
   Send, 
   CornerDownRight 
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { usePostsContext } from '../../context/PostContext';
 import { useComments } from '../../context/CommentContext';
 import { useAuth } from '../../context/AuthContext';
@@ -28,6 +29,7 @@ const PostCard = (post) => {
   const { toggleLike, deletePost } = usePostsContext();
   const { addComment, deleteComment, addReply, deleteReply } = useComments();
   const { user } = useAuth();
+  const navigate = useNavigate();
   
   const [isLiking, setIsLiking] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -85,12 +87,18 @@ const PostCard = (post) => {
         <div className="flex items-center gap-3">
           <img 
             src={author?.avatar_url || `https://ui-avatars.com/api/?name=${author?.username || 'User'}`} 
-            className="w-10 h-10 rounded-full object-cover border" 
+            className="w-10 h-10 rounded-full object-cover border cursor-pointer hover:opacity-80 transition-opacity" 
             alt="avatar"
+            onClick={() => navigate(`/user/${author?.id}`)}
           />
           <div>
             <div className="flex items-center gap-1">
-              <h4 className="font-bold text-gray-900 text-[15px]">{author?.username || "Anonyme"}</h4>
+              <h4 
+                className="font-bold text-gray-900 text-[15px] cursor-pointer hover:underline"
+                onClick={() => navigate(`/user/${author?.id}`)}
+              >
+                {author?.username || "Anonyme"}
+              </h4>
               {parent_id && (
                 <span className="text-gray-500 text-sm font-normal">• a partagé</span>
               )}
@@ -135,10 +143,16 @@ const PostCard = (post) => {
                 <div className="flex items-center gap-2 mb-2">
                   <img 
                     src={parent_post.author?.avatar_url || `https://ui-avatars.com/api/?name=${parent_post.author?.username}`} 
-                    className="w-5 h-5 rounded-full object-cover" 
+                    className="w-5 h-5 rounded-full object-cover cursor-pointer" 
                     alt="" 
+                    onClick={() => navigate(`/user/${parent_post.author?.id}`)}
                   />
-                  <span className="font-bold text-xs text-gray-900">{parent_post.author?.username}</span>
+                  <span 
+                    className="font-bold text-xs text-gray-900 cursor-pointer hover:underline"
+                    onClick={() => navigate(`/user/${parent_post.author?.id}`)}
+                  >
+                    {parent_post.author?.username}
+                  </span>
                 </div>
                 <p className="text-sm text-gray-700 mb-2">{parent_post.content}</p>
                 {parent_post.image_url && (
@@ -248,12 +262,18 @@ const PostCard = (post) => {
                 <div className="flex gap-2 group">
                   <img 
                     src={comment.author?.avatar_url || `https://ui-avatars.com/api/?name=${comment.author?.username}`} 
-                    className="w-8 h-8 rounded-full" 
+                    className="w-8 h-8 rounded-full cursor-pointer hover:opacity-80" 
                     alt="author" 
+                    onClick={() => navigate(`/user/${comment.author?.id}`)}
                   />
                   <div className="flex-1">
                     <div className="bg-gray-100 rounded-2xl px-3 py-2 inline-block max-w-full relative">
-                      <p className="text-xs font-bold text-gray-900">{comment.author?.username}</p>
+                      <p 
+                        className="text-xs font-bold text-gray-900 cursor-pointer hover:underline"
+                        onClick={() => navigate(`/user/${comment.author?.id}`)}
+                      >
+                        {comment.author?.username}
+                      </p>
                       <p className="text-sm text-gray-800">{comment.content}</p>
                       
                       {user?.id === comment.user_id && (
@@ -280,12 +300,18 @@ const PostCard = (post) => {
                         <CornerDownRight size={16} className="text-gray-300" />
                         <img 
                           src={reply.author?.avatar_url || `https://ui-avatars.com/api/?name=${reply.author?.username}`} 
-                          className="w-6 h-6 rounded-full" 
+                          className="w-6 h-6 rounded-full cursor-pointer hover:opacity-80" 
                           alt="reply-author" 
+                          onClick={() => navigate(`/user/${reply.author?.id}`)}
                         />
                         <div className="flex-1">
                           <div className="bg-white border border-gray-100 rounded-2xl px-3 py-1.5 inline-block group relative">
-                            <p className="text-[11px] font-bold text-gray-900">{reply.author?.username}</p>
+                            <p 
+                              className="text-[11px] font-bold text-gray-900 cursor-pointer hover:underline"
+                              onClick={() => navigate(`/user/${reply.author?.id}`)}
+                            >
+                              {reply.author?.username}
+                            </p>
                             <p className="text-sm text-gray-800">{reply.content}</p>
                             {user?.id === reply.user_id && (
                               <button 

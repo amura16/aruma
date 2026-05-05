@@ -9,12 +9,50 @@ export const CommentProvider = ({ children }) => {
 
   const addComment = async (postId, content) => {
     if (!user) return;
-    return await supabase.from('comments').insert({ post_id: postId, user_id: user.id, content });
+    const { data, error } = await supabase.from('comments').insert({ post_id: postId, user_id: user.id, content }).select().single();
+    
+    if (!error && data) {
+      const { data: postData } = await supabase
+        .from('posts')
+        .select('user_id')
+        .eq('id', postId)
+        .single();
+
+      if (postData && postData.user_id !== user.id) {
+        await supabase.from('notifications').insert({
+          user_id: postData.user_id,
+          actor_id: user.id,
+          post_id: postId,
+          type: 'comment',
+          content: 'a commenté votre publication'
+        });
+      }
+    }
+    return { data, error };
   };
 
   const addReply = async (commentId, content) => {
     if (!user) return;
-    return await supabase.from('comment_replies').insert({ comment_id: commentId, user_id: user.id, content });
+    const { data, error } = await supabase.from('comment_replies').insert({ comment_id: commentId, user_id: user.id, content }).select().single();
+    
+    if (!error && data) {
+      const { data: commentData } = await supabase
+        .from('comments')
+        .select('user_id, post_id')
+        .eq('id', commentId)
+        .single();
+
+      if (commentData && commentData.user_id !== user.id) {
+        await supabase.from('notifications').insert({
+          user_id: commentData.user_id,
+          actor_id: user.id,
+          post_id: commentData.post_id,
+          type: 'comment',
+          content: 'a répondu à votre commentaire'
+        });
+      }
+    }
+    return { data, error };
   };
 
   const deleteComment = async (id) => await supabase.from('comments').delete().eq('id', id);

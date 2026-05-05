@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useFriendsContext } from '../../context/FriendsContext';
 import supabase from '../../services/supabaseClient';
 import FriendsListModal from './FriendsListModal';
+import EditProfileModal from './EditProfileModal';
 
 const ProfileHeader = ({ user, isOwner = false }) => {
   const navigate = useNavigate();
@@ -32,6 +33,7 @@ const ProfileHeader = ({ user, isOwner = false }) => {
   const [showOptions, setShowOptions] = useState(false);
   const [displayFriendCount, setDisplayFriendCount] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const optionsRef = useRef(null);
   const avatarInputRef = useRef(null);
@@ -167,7 +169,7 @@ const ProfileHeader = ({ user, isOwner = false }) => {
             <div className="flex gap-2 w-full md:w-auto mt-4 md:mt-0 items-center">
               {isOwner ? (
                 <button
-                  onClick={() => navigate('/setting')}
+                  onClick={() => setIsEditModalOpen(true)}
                   className="flex-1 md:flex-none bg-gray-200 text-gray-800 px-6 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-gray-300 transition-colors"
                 >
                   <Edit2 size={18} /> Modifier le profil
@@ -249,6 +251,12 @@ const ProfileHeader = ({ user, isOwner = false }) => {
         onClose={() => setIsModalOpen(false)}
         userId={user?.id}
         userName={user?.firstname}
+      />
+      {/* Modale de modification de profil */}
+      <EditProfileModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        user={user}
       />
     </div>
   );

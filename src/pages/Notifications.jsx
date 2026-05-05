@@ -4,9 +4,11 @@ import NavBar from '../components/Layout/Navbar';
 import NotificationSidebar from '../components/Notifications/NotificationSidebar';
 import { useAuth } from '../context/AuthContext';
 import supabase from '../services/supabaseClient';
+import { useNavigate } from 'react-router-dom';
 
 const Notifications = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [filter, setFilter] = useState("all");
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -122,19 +124,32 @@ const Notifications = () => {
                 notifications.map((notif) => (
                   <div
                     key={notif.id}
-                    onClick={() => handleMarkAsRead(notif)}
+                    onClick={() => {
+                      handleMarkAsRead(notif);
+                      if (notif.post_id) navigate(`/post/${notif.post_id}`);
+                    }}
                     className={`p-4 flex items-start gap-4 hover:bg-gray-50 transition-all cursor-pointer ${!notif.is_read ? 'bg-blue-50/40 border-l-4 border-blue-600' : 'border-l-4 border-transparent'
                       }`}
                   >
                     <img
                       src={notif.actor?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${notif.actor?.firstname}`}
-                      className="w-12 h-12 rounded-full object-cover border border-gray-100"
+                      className="w-12 h-12 rounded-full object-cover border border-gray-100 cursor-pointer hover:opacity-80 transition-opacity"
                       alt=""
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/user/${notif.actor_id}`);
+                      }}
                     />
 
                     <div className="flex-1">
                       <p className="text-[15px] text-gray-800 leading-snug">
-                        <span className="font-bold text-gray-900">
+                        <span 
+                          className="font-bold text-gray-900 hover:underline cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/user/${notif.actor_id}`);
+                          }}
+                        >
                           {notif.actor?.firstname} {notif.actor?.lastname}
                         </span> {notif.content}
                       </p>

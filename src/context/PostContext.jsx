@@ -100,6 +100,24 @@ export const PostProvider = ({ children }) => {
           .insert({ post_id: currentPostId, user_id: currentUserId });
         
         if (error && error.code !== '23505') throw error;
+
+        // --- Notification pour le Like ---
+        // On récupère d'abord le propriétaire du post
+        const { data: postData } = await supabase
+          .from('posts')
+          .select('user_id')
+          .eq('id', currentPostId)
+          .single();
+
+        if (postData && postData.user_id !== currentUserId) {
+          await supabase.from('notifications').insert({
+            user_id: postData.user_id,
+            actor_id: currentUserId,
+            post_id: currentPostId,
+            type: 'like',
+            content: 'a aimé votre publication'
+          });
+        }
       }
     } catch (err) {
       console.error("Erreur toggleLike:", err);
@@ -114,7 +132,27 @@ export const PostProvider = ({ children }) => {
       ? { user_id: user.id, content: postData }
       : { user_id: user.id, ...postData };
 
-    return await supabase.from('posts').insert(payload);
+    const { data, error } = await supabase.from('posts').insert(payload).select().single();
+    
+    // --- Notification pour le Partage ---
+    if (!error && payload.parent_id && data) {
+      const { data: parentPost } = await supabase
+        .from('posts')
+        .select('user_id')
+        .eq('id', payload.parent_id)
+        .single();
+
+      if (parentPost && parentPost.user_id !== user.id) {
+        await supabase.from('notifications').insert({
+          user_id: parentPost.user_id,
+          actor_id: user.id,
+          post_id: data.id, // On pointe vers le post de partage
+          type: 'share',
+          content: 'a partagé votre publication'
+        });
+      }
+    }
+    return { data, error };
   };
 
   const updatePost = async (postId, content) => 
@@ -123,8 +161,28 @@ export const PostProvider = ({ children }) => {
   const deletePost = async (postId) => 
     await supabase.from('posts').delete().eq('id', postId);
 
-  const addComment = async (postId, content) => 
-    await supabase.from('comments').insert({ post_id: postId, user_id: user.id, content });
+  const addComment = async (postId, content) => {
+    const { data, error } = await supabase.from('comments').insert({ post_id: postId, user_id: user.id, content }).select().single();
+    
+    if (!error && data) {
+      const { data: postData } = await supabase
+        .from('posts')
+        .select('user_id')
+        .eq('id', postId)
+        .single();
+
+      if (postData && postData.user_id !== user.id) {
+        await supabase.from('notifications').insert({
+          user_id: postData.user_id,
+          actor_id: user.id,
+          post_id: postId,
+          type: 'comment',
+          content: 'a commenté votre publication'
+        });
+      }
+    }
+    return { data, error };
+  };
 
   const updateComment = async (commentId, content) => 
     await supabase.from('comments').update({ content }).eq('id', commentId);
@@ -132,8 +190,28 @@ export const PostProvider = ({ children }) => {
   const deleteComment = async (commentId) => 
     await supabase.from('comments').delete().eq('id', commentId);
 
-  const addReply = async (commentId, content) => 
-    await supabase.from('comment_replies').insert({ comment_id: commentId, user_id: user.id, content });
+  const addReply = async (commentId, content) => {
+    const { data, error } = await supabase.from('comment_replies').insert({ comment_id: commentId, user_id: user.id, content }).select().single();
+    
+    if (!error && data) {
+      const { data: commentData } = await supabase
+        .from('comments')
+        .select('user_id, post_id')
+        .eq('id', commentId)
+        .single();
+
+      if (commentData && commentData.user_id !== user.id) {
+        await supabase.from('notifications').insert({
+          user_id: commentData.user_id,
+          actor_id: user.id,
+          post_id: commentData.post_id,
+          type: 'comment', // ou 'reply' si vous voulez distinguer
+          content: 'a répondu à votre commentaire'
+        });
+      }
+    }
+    return { data, error };
+  };
 
   const updateReply = async (replyId, content) => 
     await supabase.from('comment_replies').update({ content }).eq('id', replyId);
