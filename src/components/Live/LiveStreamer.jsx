@@ -17,11 +17,14 @@ const LiveStreamer = ({ onStreamEnd }) => {
   const streamRef = useRef(null);
   const peerRef = useRef(null);
   const activeCallsRef = useRef([]);
+  const isMounted = useRef(true);
 
   // Démarrer la capture vidéo au montage
   useEffect(() => {
+    isMounted.current = true;
     startCamera();
     return () => {
+      isMounted.current = false;
       cleanup();
     };
   }, []);
@@ -32,14 +35,23 @@ const LiveStreamer = ({ onStreamEnd }) => {
         video: true,
         audio: true
       });
+      
+      if (!isMounted.current) {
+        // Si déjà démonté, on arrête tout de suite
+        mediaStream.getTracks().forEach(track => track.stop());
+        return;
+      }
+
       setStream(mediaStream);
       streamRef.current = mediaStream;
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
       }
     } catch (err) {
-      console.error("Erreur caméra:", err);
-      alert("Impossible d'accéder à la caméra ou au micro.");
+      if (isMounted.current) {
+        console.error("Erreur caméra:", err);
+        alert("Impossible d'accéder à la caméra ou au micro.");
+      }
     }
   };
 
